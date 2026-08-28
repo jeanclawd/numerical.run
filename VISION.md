@@ -69,18 +69,47 @@ metadata already rides in comments, Pluto.jl-style
 built — it's how a plain-text file stays git-diffable one-hunk-per-cell
 *and* carries structure MATLAB itself doesn't have a syntax for.
 
-**A markdown serialization (new — `.nb.md`, name not final).** For the
-cases plain `.m` doesn't serve well: narrative text between cells that isn't
-a MATLAB comment, rendering nicely on GitHub un-opened, interop with
-existing markdown-notebook tooling. Real prior art to build on rather than
-invent from scratch — Jupytext's markdown format and MyST-NB already solve
-"fenced code blocks + directives round-trip to a notebook"; Quarto's `.qmd`
-is the same idea for a different audience. (Note: I don't have a specific
-Jupyter ".md.nb" spec to point to — if there's a particular effort you had
-in mind, it'd help to compare against directly. Jupytext/MyST are the
-closest real formats I know of doing this today.) Code cells become fenced
-` ```matlab ` blocks; the `⟳` pragmas become either HTML comments (invisible
-on GitHub) or a small MyST-style directive.
+**A markdown serialization — `.nb.md`, and now there's a real spec to build
+on.** [JEP #103, "Official support for Markdown-based notebooks"](https://github.com/jupyter/enhancement-proposals/pull/103)
+(Thiéry/Purves/Lisin, opened 2023-03-01, still unmerged/open as of this
+writing) proposes exactly this extension and a concrete syntax: an optional
+YAML frontmatter header for notebook metadata; code cells as
+` ```{jupyter.code-cell} ` fenced blocks (execution count and id in the
+info-string, cell metadata via a YAML block, MyST-style `:key: value`
+shorthand, or single-line JSON — all three, deliberately, so authors can
+pick concise-and-editable vs. exhaustive-and-unobtrusive); outputs as
+sibling `{jupyter.output output_type=...}` blocks, one JSON object per line
+per MIME type for diff-friendliness; text is just the surrounding Markdown
+flow, split into cells with a `+++` thematic break (borrowed from MyST).
+Worth noting: the JEP's own Motivation section already lists MATLAB's
+cell convention as prior art alongside VS Code/Spyder/PyCharm — the
+`%%`-section idea `.rerun.m` builds on isn't an outside influence to this
+proposal, it's already inside its frame of reference.
+
+Given a real spec exists, `.nb.md` should **adopt JEP #103's syntax as-is**
+rather than inventing a divergent one — that's the whole point of building
+on prior art instead of gesturing at it. Concretely: `{jupyter.code-cell}`
+for MATLAB code cells (with a `matlab` language hint per the JEP's advisory
+prefix — `` ```matlab {jupyter.code-cell} ``), `+++` for cell breaks between
+narrative Markdown, and numerical.run's own widget/layout data as ordinary
+cell metadata inside the mechanism the JEP already defines (the shorthand
+block), rather than a separate bespoke directive:
+
+    ```matlab {jupyter.code-cell}
+    :widget: {kind: sl_slider, bind: f, x: 120, y: 40, w: 220}
+
+    f = sl_slider('frequency', 1, 8, 2, 0.5);
+    ```
+
+That keeps `.nb.md` a plain, spec-following Markdown Jupyter notebook to
+any JEP-103-aware tool — numerical.run-specific data just rides in cell
+metadata the same way `tags` or slide config would.
+
+**`⟳` pragmas stay exactly as they are for `.m` — that half doesn't
+change.** JEP #103 is a Markdown syntax; it has nothing to say about plain
+`.m` files, and MATLAB comments can't carry a fenced-directive block
+anyway. The two serializations solve the same problem in the idiom each
+host format already supports, which is the right split, not a compromise.
 
 **The pragma vocabulary extends, doesn't replace, what's there.** Today
 `⟳` carries exactly two things: cell identity and page order. Widgets need
@@ -188,8 +217,13 @@ numerical.run isn't affiliated with either.
 - **Streamlit** — Streamlab's entire API surface and "the script is the
   app" philosophy, taken directly.
 - **Jupytext / MyST-NB / Quarto** — the actual prior art for "markdown
-  ⇄ notebook, round-trips losslessly," which is what the `.nb.md` format
-  needs to be measured against, not invented in a vacuum.
+  ⇄ notebook, round-trips losslessly."
+- **[JEP #103](https://github.com/jupyter/enhancement-proposals/pull/103)**
+  — the specific, still-unmerged proposal for `.nb.md` itself. Not a
+  vague direction to gesture at; a concrete syntax to adopt (see "The
+  notebook format" above). Its own Motivation section already cites
+  MATLAB's cell convention as prior art, which is a good sign this and
+  `.rerun.m` are pointed the same way.
 
 ## Open questions worth resolving before writing code
 
