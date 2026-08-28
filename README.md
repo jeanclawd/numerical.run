@@ -1,28 +1,30 @@
 # numerical.run
 
-Merging [`rerun`](https://github.com/jeanclawd/rerun) (a reactive `.m`
-notebook, marimo/Pluto.jl-inspired) and
-[`streamlab`](https://github.com/jeanclawd/streamlab) (Streamlit's model on
-the RunMat runtime) into one project: ReRun's reactive DAG engine, running
-Streamlab's widget library, serialized to a portable notebook format that
-stays `.m`-compatible (no `.mlx`, no proprietary format, no new MATLAB
-syntax — widgets are plain function calls, layout rides in comments) with a
-markdown-native sibling format for broader interop.
+One `.nb.md` document, two modes — a **notebook** for building and an **app**
+for using — running on a single [RunMat](https://github.com/dystr/runmat)
+WebAssembly kernel that speaks the Jupyter protocol. Edit as a notebook, ship
+as an app, from the same file and the same live session.
 
-Two views over one document, one live session: a **notebook view** for
-building (ReRun's cell/DAG UI, unchanged), and an **app view** for using
-(Streamlab's widgets-in-place rendering, unchanged) — plus a WYSIWYG editor
-that writes the same widget calls a developer would type by hand.
+The execution model is Streamlit's, not a reactive notebook's: **every change
+reruns the whole document, top to bottom**. One loop, no dependency graph, no
+hidden per-cell state — predictable and simple, the way
+[`streamlab`](https://github.com/jeanclawd/streamlab) already works.
 
-Design/scoping stage — see [`VISION.md`](VISION.md) for the full writeup:
-the execution-model tension between the two source projects and how it
-resolves, the notebook format and its pragma vocabulary, what's reused
-verbatim from each repo vs. genuinely new, the IP posture, and the
-inspirations (marimo, Pluto.jl, Jupyter, Streamlit, Jupytext/MyST-NB/Quarto)
-this draws on honestly rather than by name-drop.
+Widgets are plain MATLAB function calls from
+[`streamlab`](https://github.com/jeanclawd/streamlab)'s `sl_*` library — no new
+syntax, no `.mlx`, no proprietary format. The serialization is
+[**`.nb.md`**](VISION.md#the-nbmd-format): a Markdown-based Jupyter notebook
+following [JEP&nbsp;#103](https://github.com/jupyter/enhancement-proposals/pull/103),
+so any Jupyter-aware tool can read it and it stays one-hunk-per-cell in git.
+
+A **WYSIWYG editor** lets you drag widgets onto the app canvas; it writes the
+same `sl_*` calls a developer would type by hand, back into the same `.nb.md`.
+
+Design/scoping stage — see [`VISION.md`](VISION.md) for the full writeup: the
+single-loop execution model, the two views over one kernel, the `.nb.md`
+format and how it maps to JEP #103, the WYSIWYG layer, what's reused verbatim
+from `streamlab` vs. genuinely new, the IP posture, and the inspirations
+(Streamlit, Jupyter, Jupytext/MyST-NB/Quarto, marimo, Pluto.jl) this draws on
+honestly rather than by name-drop.
 
 Private. Nothing here is built yet.
-
----
-
-<sub>RunMat™ is a registered trademark of Dystr, Inc. MATLAB® is a registered trademark of The MathWorks, Inc. numerical.run is not affiliated with, endorsed by, or sponsored by Dystr, Inc or The MathWorks, Inc.</sub>
