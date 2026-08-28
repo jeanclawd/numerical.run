@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>numerical.run</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./style.css?v=__V__">
+</head>
+<body data-v="__V__">
+  <header>
+    <span class="wordmark">numerical<b>.run</b></span>
+    <span class="tag">.nb.md · RunMat · Jupyter kernel · in-browser</span>
+
+    <nav>
+      <div class="seg" id="mode">
+        <button data-mode="notebook" class="on">Notebook</button>
+        <button data-mode="app">App</button>
+      </div>
+      <button id="design-btn" class="ghost" title="WYSIWYG: drop widgets into the document">＋ Widgets</button>
+      <button id="run-btn" title="Rerun the whole document (Ctrl+Enter)">Run all ▸</button>
+      <label for="example" class="vis-md">example</label>
+      <select id="example" class="vis-md"></select>
+      <button id="share-btn" class="ghost" title="Copy a link carrying this .nb.md">share</button>
+    </nav>
+    <span id="status" class="status">booting runtime…</span>
+  </header>
+
+  <div id="palette" hidden>
+    <div class="palette-head">
+      <strong>Widgets</strong>
+      <span class="hint" id="palette-target">→ new cell</span>
+      <button id="palette-close" class="ghost">✕</button>
+    </div>
+    <div class="palette-grid" id="palette-grid"></div>
+    <div class="hint palette-note">Click to insert the <code>sl_*</code> call into the active
+      code cell (or a new one) and rerun — the same code you'd type by hand.</div>
+  </div>
+
+  <main>
+    <div id="notebook" class="view"></div>
+    <div id="app" class="view app-column" hidden>
+      <div class="boot-note">loading the RunMat runtime (52&nbsp;MB, cached after the first visit)…</div>
+    </div>
+  </main>
+
+  <footer>
+    <span>one <code>.nb.md</code> document, two modes on one RunMat WASM kernel —
+    every interaction reruns the whole document top-to-bottom, the Streamlit model.</span>
+  </footer>
+
+  <script type="module" src="./app.js?v=__V__"></script>
+</body>
+</html>
