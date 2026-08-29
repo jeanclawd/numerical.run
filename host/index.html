@@ -33,8 +33,11 @@
     #editor { flex: 1; min-height: 0; }
     .preview { flex: 1; min-height: 0; overflow: auto; background: var(--bg); }
     #pv-app { padding: 1.4rem 1.2rem 3rem; max-width: 46rem; margin: 0 auto; }
-    .statusbar { display: flex; gap: 1rem; align-items: center; padding: 0.35rem 0.9rem; border-top: 1px solid var(--edge); background: var(--panel); font: 11.5px ui-monospace, Menlo, monospace; color: var(--muted); }
+    /* full-width bottom bar (a body child, not inside the flex-row #stage — else
+       it lays out as a column to the RIGHT of the content) */
+    .statusbar { flex: none; display: flex; gap: 1rem; align-items: center; padding: 0.35rem 0.9rem; border-top: 1px solid var(--edge); background: var(--panel); font: 11.5px ui-monospace, Menlo, monospace; color: var(--muted); }
     .statusbar .spacer { flex: 1; }
+    #stage.view ~ .statusbar { display: none; }   /* no dev status bar for plain App viewers */
 
     /* ---- layout by stage state ---- */
     /* view: full-width app; no editor */
@@ -105,8 +108,8 @@
     <section class="pane right">
       <div class="preview"><div id="pv-app"><div class="tag" style="padding:2rem 1rem">loading the RunMat runtime (52&nbsp;MB, cached after first visit)…</div></div></div>
     </section>
-    <div class="statusbar"><span id="status2"></span><span class="spacer"></span><span id="dev-time"></span></div>
   </main>
+  <div class="statusbar" id="statusbar"><span id="status2"></span><span class="spacer"></span><span id="dev-time"></span></div>
 
   <script type="module" src="./app.js?v=__V__"></script>
 </body>
