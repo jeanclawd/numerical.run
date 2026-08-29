@@ -23,6 +23,10 @@
     .kbd { font: 11px ui-monospace, Menlo, monospace; color: var(--accent-ink); opacity: .8; margin-left: 0.35rem; }
     button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--edge); border-radius: 7px; padding: 0.3rem 0.7rem; font-size: 0.82rem; cursor: pointer; }
     button.ghost:hover { color: var(--ink); border-color: var(--accent); }
+    /* share stands out: a blue→purple gradient contour (fills on hover) */
+    #share-btn { border: 1.6px solid transparent; border-radius: 8px; font-weight: 600; color: var(--ink);
+      background: linear-gradient(var(--bg), var(--bg)) padding-box, var(--grad) border-box; }
+    #share-btn:hover { background: var(--grad); color: var(--accent-ink); }
     select { background: var(--panel); color: var(--ink); border: 1px solid var(--edge); border-radius: 7px; padding: 0.28rem 0.5rem; font-size: 0.82rem; }
     /* Notebook | App toggle — selected mode carries the blue→purple gradient */
     .seg { display: inline-flex; border: 1px solid var(--edge); border-radius: 8px; overflow: hidden; }
