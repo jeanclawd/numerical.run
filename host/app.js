@@ -23,7 +23,7 @@ const status = (t) => { const s = q('#status2'); if (s) s.textContent = t; };
 const b64encode = (s) => btoa(String.fromCharCode(...new TextEncoder().encode(s)));
 const b64decode = (s) => new TextDecoder().decode(Uint8Array.from(atob(s), (c) => c.charCodeAt(0)));
 
-const EXAMPLES = ['waves.nb.md', 'mel-spectrogram.nb.md', 'knn.nb.md', 'hello.nb.md'];
+const EXAMPLES = ['waves.nb.md', 'signal.nb.md', 'knn.nb.md', 'hello.nb.md'];
 const DEFAULT_DOC = `# numerical.run
 
 A \`.nb.md\` notebook that runs entirely in your browser on the RunMat WASM
