@@ -44,7 +44,8 @@ function buildVariantSeg() {
   });
 }
 
-const status = (t) => { q('#status').textContent = t; const s2 = q('#status2'); if (s2) s2.textContent = t; };
+// status lives only in the bottom statusbar now, not the top ribbon
+const status = (t) => { const s = q('#status2'); if (s) s.textContent = t; };
 
 let kernel, parseNbMd, serializeNbMd, newCell, mdToHtml;
 let doc = { frontmatter: null, cells: [] }, source = '', lastByCell = new Map();
@@ -56,7 +57,7 @@ async function boot() {
   const md = await import(`./md.js?v=${V}`);
   parseNbMd = nb.parseNbMd; serializeNbMd = nb.serializeNbMd; newCell = nb.newCell; mdToHtml = md.mdToHtml;
   kernel = await kmod.createKernel({
-    statusEl: q('#status'), runtimeUrl: RUNTIME, figrenderUrl: `${FIGR}?v=${V}`,
+    statusEl: q('#status2'), runtimeUrl: RUNTIME, figrenderUrl: `${FIGR}?v=${V}`,
     renderUrl: `./render.js?v=${V}`, library: await (await fetch(`./lib.m?v=${V}`)).text(),
   });
 
@@ -215,6 +216,5 @@ function renderCellsOutputs() { doc.cells.forEach((cell) => { if (cell.kind === 
 // ---------------------------------------------------------------- common wiring
 function wireCommon() {
   buildVariantSeg();
-  const runBtn = q('#run-btn'); runBtn.hidden = false; runBtn.onclick = runAll;
-  if (VARIANT === 1) runBtn.textContent = '▶ Run all';
+  const runBtn = q('#run-btn'); runBtn.hidden = false; runBtn.onclick = runAll; runBtn.textContent = '▶ Run';
 }
