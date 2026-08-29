@@ -14,7 +14,10 @@
     body { display: flex; flex-direction: column; background: var(--bg); color: var(--ink); }
     header { display: flex; align-items: center; gap: 0.5rem 0.85rem; padding: 0.55rem 1rem; border-bottom: 1px solid var(--edge); background: var(--panel); flex: none; flex-wrap: wrap; position: relative; }
     header::after { content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:var(--grad); opacity:.9; }
-    .wordmark { font-weight: 600; display: inline-flex; align-items: center; gap: .45rem; }
+    .wordmark { font-weight: 600; display: inline-flex; align-items: center; gap: .45rem; text-decoration: none; color: var(--ink); }
+    /* thumbnails in a gallery/prose notebook */
+    #pv-app .nr-text img, .nbc .md img { max-width: 380px; width: 100%; border: 1px solid var(--edge); border-radius: 10px; display: block; margin: .5rem 0; }
+    #pv-app .nr-text a:has(img) { display: inline-block; }
     .wordmark .logo { height: 1.45em; width: auto; display: block; }
     .wordmark b { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 800; }
     .tag { font-size: 0.72rem; color: var(--muted); }
@@ -110,23 +113,6 @@
     .edit-only { display: none; }
     body.is-edit .view-only { display: none; }
 
-    /* demo gallery overlay */
-    #gallery { position: fixed; inset: 0; z-index: 200; background: var(--bg); display: flex; flex-direction: column; overflow: auto; }
-    .gal-head { display: flex; align-items: center; gap: .6rem; padding: .7rem 1.1rem; border-bottom: 1px solid var(--edge); background: var(--panel); position: relative; }
-    .gal-head::after { content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:var(--grad); opacity:.9; }
-    .gal-head .logo { height: 1.5em; }
-    .gal-head .spacer { flex: 1; }
-    .gal-body { max-width: 68rem; margin: 0 auto; width: 100%; padding: 1.6rem 1.2rem 4rem; }
-    .gal-body h1 { font-size: 1.6rem; margin: .3rem 0 .3rem; }
-    .gal-body .lead { color: var(--muted); margin: 0 0 1.4rem; max-width: 44rem; }
-    .gal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 1rem; }
-    .gal-card { border: 1px solid var(--edge); border-radius: 12px; overflow: hidden; background: var(--bg); cursor: pointer; text-align: left; padding: 0; color: inherit; transition: border-color .15s, transform .1s; }
-    .gal-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-    .gal-thumb { aspect-ratio: 16/10; width: 100%; object-fit: cover; display: block; background: var(--panel); border-bottom: 1px solid var(--edge); }
-    .gal-thumb.ph { display: flex; align-items: center; justify-content: center; background: var(--grad); color: var(--accent-ink); font-size: 1.6rem; font-weight: 700; }
-    .gal-meta { padding: .6rem .8rem .8rem; }
-    .gal-meta h3 { margin: 0 0 .25rem; font-size: 1rem; }
-    .gal-meta p { margin: 0; font-size: .82rem; color: var(--muted); line-height: 1.45; }
 
     @media (max-width: 860px) {
       #stage.classic { flex-direction: column; }
@@ -142,12 +128,9 @@
 </head>
 <body data-v="__V__">
   <header>
-    <span class="wordmark"><svg class="logo" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="nrg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b82f6"/><stop offset=".5" stop-color="#6d5cf6"/><stop offset="1" stop-color="#a855f7"/></linearGradient></defs><rect x="1" y="1" width="30" height="30" rx="8" fill="url(#nrg)"/><g fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 8.5 H8 V23.5 H11"/><path d="M21 8.5 H24 V23.5 H21"/></g><path d="M13.4 11 V21 L20 16 Z" fill="#fff"/></svg>numerical<b>.run</b></span>
+    <a class="wordmark" href="./" title="Home — all demos"><svg class="logo" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="nrg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b82f6"/><stop offset=".5" stop-color="#6d5cf6"/><stop offset="1" stop-color="#a855f7"/></linearGradient></defs><rect x="1" y="1" width="30" height="30" rx="8" fill="url(#nrg)"/><g fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 8.5 H8 V23.5 H11"/><path d="M21 8.5 H24 V23.5 H21"/></g><path d="M13.4 11 V21 L20 16 Z" fill="#fff"/></svg>numerical<b>.run</b></a>
     <span class="tag" id="modetag">.nb.md · RunMat · in-browser</span>
     <span class="spacer"></span>
-    <button id="gallery-btn" class="ghost" title="Browse demos">⊞ Examples</button>
-    <label class="tag edit-only" for="example">example</label>
-    <select id="example" class="edit-only"></select>
     <div class="seg" id="nav-seg">
       <button data-nav="edit" id="nav-edit">Notebook</button>
       <button data-nav="app" id="nav-app">App</button>
@@ -155,19 +138,6 @@
     <button id="run-btn" class="edit-only">▶ Run<span class="kbd">⌘⏎</span></button>
     <button id="share-btn" class="ghost" title="Copy a link carrying this document">share</button>
   </header>
-
-  <div id="gallery" hidden>
-    <div class="gal-head">
-      <span class="wordmark"><svg class="logo" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="nrg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b82f6"/><stop offset=".5" stop-color="#6d5cf6"/><stop offset="1" stop-color="#a855f7"/></linearGradient></defs><rect x="1" y="1" width="30" height="30" rx="8" fill="url(#nrg2)"/><g fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 8.5 H8 V23.5 H11"/><path d="M21 8.5 H24 V23.5 H21"/></g><path d="M13.4 11 V21 L20 16 Z" fill="#fff"/></svg>numerical<b>.run</b></span>
-      <span class="spacer"></span>
-      <button id="gal-close" class="ghost">✕ close</button>
-    </div>
-    <div class="gal-body">
-      <h1>Interactive notebooks, in your browser</h1>
-      <p class="lead">Every demo is one <code>.nb.md</code> running live on the RunMat kernel — no install, no server. Pick one to open it; edit any cell and hit Run, or toggle App to use it. Or start from a blank notebook.</p>
-      <div class="gal-grid" id="gallery-grid"></div>
-    </div>
-  </div>
 
   <main id="stage" class="view">
     <section class="pane" id="editor-pane">

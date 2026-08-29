@@ -11,7 +11,6 @@ spectrogram**. Drag the sliders (App mode) to hear the maths move.
 A linear chirp sweeps from a start to an end frequency; we add a little 50 Hz hum.
 
 ```matlab {jupyter.code-cell}
-nr_demo('Mel spectrogram', 'Chirp → FFT → mel filterbank → spectrogram');
 fs  = 8000;                       % sample rate (Hz)
 dur = 1.0;                        % seconds
 f0  = nr_slider('chirp start (Hz)', 100, 1000, 200, 50);

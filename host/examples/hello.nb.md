@@ -3,7 +3,6 @@
 The smallest useful notebook: an input, some state, a button. Try **App** mode.
 
 ```matlab {jupyter.code-cell}
-nr_demo('Hello', 'Inputs, session state, a button — the basics');
 name = nr_text_input('your name', 'world');
 nr_text('Hello, %s!', name);
 

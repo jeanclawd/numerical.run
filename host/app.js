@@ -313,37 +313,12 @@ function showLinkToast(url) {
 
 // ---------------------------------------------------------------- shell wiring
 function shareLink() { return `${location.origin}${location.pathname}#code=${b64encode(currentSource())}`; }
-// ---------------------------------------------------------------- gallery
-async function loadExample(name) { loadText(await (await fetch(`./examples/${name}?v=${V}`)).text()); }
-const openGallery = () => { q('#gallery').hidden = false; };
-const closeGallery = () => { q('#gallery').hidden = true; };
-async function buildGallery() {
-  let items = [];
-  try { items = await (await fetch(`./gallery.json?v=${V}`)).json(); } catch { items = EXAMPLES.map((f) => ({ file: f, title: f.replace('.nb.md', ''), description: '', thumb: null })); }
-  const grid = q('#gallery-grid'); grid.innerHTML = '';
-  const card = (thumbHTML, title, desc, onClick) => {
-    const c = document.createElement('button'); c.className = 'gal-card'; c.innerHTML = thumbHTML;
-    const m = document.createElement('div'); m.className = 'gal-meta';
-    const h = document.createElement('h3'); h.textContent = title; const p = document.createElement('p'); p.textContent = desc;
-    m.append(h, p); c.appendChild(m); c.addEventListener('click', onClick); return c;
-  };
-  for (const d of items) {
-    const thumb = d.thumb
-      ? `<img class="gal-thumb" src="./${d.thumb}?v=${V}" alt="">`
-      : `<div class="gal-thumb ph">${(d.title || '?').slice(0, 1)}</div>`;
-    grid.appendChild(card(thumb, d.title || d.file, d.description || '', () => { closeGallery(); loadExample(d.file); }));
-  }
-  grid.appendChild(card(`<div class="gal-thumb ph">+</div>`, 'Blank notebook', 'Start from scratch', () => { closeGallery(); loadText(DEFAULT_DOC); }));
-}
+// ---------------------------------------------------------------- shell wiring
+// Load a notebook from a URL (relative to the app, or absolute) — the mechanism
+// the gallery notebook uses to link to the other notebooks.
+async function fetchDoc(url) { const r = await fetch(url); if (!r.ok) throw new Error(`HTTP ${r.status}`); return await r.text(); }
 
 function wire() {
-  const sel = q('#example');
-  for (const e of EXAMPLES) { const o = document.createElement('option'); o.value = e; o.textContent = e.replace('.nb.md', ''); sel.appendChild(o); }
-  sel.addEventListener('change', async () => { loadText(await (await fetch(`./examples/${sel.value}?v=${V}`)).text()); });
-  q('#gallery-btn').addEventListener('click', openGallery);
-  q('#gal-close').addEventListener('click', closeGallery);
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !q('#gallery').hidden) closeGallery(); });
-  buildGallery();
   q('#run-btn').addEventListener('click', () => loadText(currentSource()));
   q('#nav-edit').addEventListener('click', () => setEditing(true));
   q('#nav-app').addEventListener('click', () => setEditing(false));
@@ -376,22 +351,25 @@ async function boot() {
   const wantEdit = hash.has('edit') || params.has('edit');
   const code = hash.get('code') || params.get('code');
   const gist = hash.get('gist') || params.get('gist');
+  const docUrl = hash.get('doc') || params.get('doc');   // load a notebook by URL
+  const blank = params.has('new');
+  let isGallery = false;
   try {
     if (code) source = b64decode(code);
     else if (gist) source = await fetchGist(gist);
-    else source = DEFAULT_DOC;
+    else if (docUrl && /^(https?:\/\/|\.?\/?examples\/|thumbs\/)/i.test(docUrl)) source = await fetchDoc(docUrl);
+    else if (blank) source = DEFAULT_DOC;
+    else { source = await fetchDoc(`./examples/gallery.nb.md?v=${V}`); isGallery = true; }   // bare URL → the gallery notebook
   } catch (e) { source = DEFAULT_DOC; status(`bad source: ${e.message}`); }
-  const hasDoc = !!(code || gist);
+  const shared = !!(code || gist || docUrl);
 
   doc = parseNbMd(source);
-  // a bare URL (authoring a new doc) opens in the editor; a shared doc opens as
-  // the App unless ?edit is present.
-  editing = wantEdit || !hasDoc;
+  // The gallery + shared docs open as the rendered App (links clickable); a blank
+  // notebook opens in the editor. ?edit always forces the editor.
+  editing = wantEdit || (!shared && !isGallery);
   setStage(); updateURL();
   await syncEditors();
   runAll();
-  // First-run onboarding: a bare URL opens the demo gallery over a default doc.
-  if (!hasDoc && !wantEdit) openGallery();
 }
 await boot();
 window.__numerical = { get source() { return currentSource(); }, setEditing, get demo() { return demoMeta; } };

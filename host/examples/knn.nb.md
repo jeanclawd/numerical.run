@@ -3,7 +3,6 @@
 Controls live in the sidebar (App mode). The script reruns on every change.
 
 ```matlab {jupyter.code-cell}
-nr_demo('kNN playground', 'k-nearest-neighbours on two interleaved classes');
 nr_sidebar();
 nr_header('controls');
 k = nr_number_input('neighbours (k)', 5, 1, 15, 2);
