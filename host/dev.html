@@ -54,11 +54,14 @@
     button.ghost:hover { color: var(--ink); border-color: var(--accent); }
     select { background: var(--panel); color: var(--ink); border: 1px solid var(--edge); border-radius: 7px; padding: 0.28rem 0.5rem; font-size: 0.78rem; }
     @media (max-width: 860px) {
-      main { flex-direction: column; }
-      .left, .right { width: auto; flex: 1 1 0; min-width: 0; }
+      /* Stacked layout: let the whole PAGE scroll instead of trapping content
+         in a fixed-height flex box (which made the top unreachable on phones). */
+      html, body { height: auto; overflow: visible; }
+      main { flex-direction: column; flex: none; }
+      .left, .right { width: auto; flex: none; min-width: 0; }
       .left { border-right: none; border-bottom: 1px solid var(--edge); }
-      #editor { min-height: 200px; }
-      .preview { min-height: 200px; }
+      #editor { height: 55vh; min-height: 260px; }
+      .preview { height: auto; overflow: visible; }
       header .tag { display: none; }
     }
   </style>
