@@ -139,6 +139,10 @@ async function ensureMonaco() {
     wordWrap: 'on', tabSize: 4, fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
   });
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => runFrom(editor.getValue()));
+  // Recompute layout once the container has settled (mobile especially) and on
+  // any resize/orientation change, so the gutter/cursor stay anchored.
+  requestAnimationFrame(() => editor.layout());
+  addEventListener('resize', () => editor && editor.layout());
   monacoReady = true;
 }
 
@@ -153,7 +157,7 @@ async function setEditing(on) {
   editing = on;
   document.body.classList.toggle('is-edit', on);
   q('#stage').className = on ? 'edit' : 'view';
-  if (on) { await ensureMonaco(); editor.setValue(source); editor.layout(); }
+  if (on) { await ensureMonaco(); editor.setValue(source); requestAnimationFrame(() => editor.layout()); }
   else if (editor) { source = editor.getValue(); }   // keep edits when leaving
   updateURL();
   render();

@@ -34,9 +34,12 @@
     select { background: var(--panel); color: var(--ink); border: 1px solid var(--edge); border-radius: 7px; padding: 0.28rem 0.5rem; font-size: 0.82rem; }
 
     /* stage: two panes; edit shows the editor + tabbed preview, view shows the app only */
-    main { display: flex; flex: 1; min-height: 0; }
+    /* NB: override the inherited streamlab `main` (centered + padded) fully, or it
+       insets/centers the editor and breaks Monaco's anchoring, esp. on mobile. */
+    main { display: flex; flex: 1; min-height: 0; padding: 0; justify-content: flex-start; }
     .pane { display: flex; flex-direction: column; min-width: 0; }
-    #editor-pane { flex: 1; border-right: 1px solid var(--edge); }
+    /* padding:0 overrides a stale streamlab `#editor-pane` rule in style.css */
+    #editor-pane { flex: 1; border-right: 1px solid var(--edge); padding: 0; }
     .right { width: 46%; min-width: 320px; }
     .panehead { display: flex; align-items: center; gap: 0.45rem; padding: 0.35rem 0.7rem; border-bottom: 1px solid var(--edge); background: var(--panel); font-size: 0.72rem; color: var(--muted); }
     #editor { flex: 1; min-height: 0; }
@@ -75,7 +78,7 @@
       body.is-edit #editor-pane, body.is-edit .right { width: auto; flex: none; }
       body.is-edit #editor-pane { border-right: none; border-bottom: 1px solid var(--edge); }
       body.is-edit html, body.is-edit body { height: auto; overflow: visible; }
-      body.is-edit #editor { height: 55vh; min-height: 260px; }
+      body.is-edit #editor { flex: none; height: 55vh; min-height: 260px; }
       body.is-edit .preview { height: auto; overflow: visible; }
       header .tag { display: none; }
     }
