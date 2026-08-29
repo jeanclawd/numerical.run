@@ -46,10 +46,13 @@ const ENGINE_DEFAULTS = [
   [0, 0.4, 0.8],
   [0, 0.447, 0.741],
 ];
+// Default color cycle sampled from the **plasma** colormap (purple → magenta →
+// orange), fitting numerical.run's palette. The pale-yellow tail is skipped so
+// lines stay legible on a light background.
 const MATLAB_ORDER = [
-  [0, 0.447, 0.741], [0.85, 0.325, 0.098], [0.929, 0.694, 0.125],
-  [0.494, 0.184, 0.556], [0.466, 0.674, 0.188], [0.301, 0.745, 0.933],
-  [0.635, 0.078, 0.184],
+  [0.416, 0.000, 0.659], [0.561, 0.051, 0.643], [0.694, 0.165, 0.565],
+  [0.800, 0.278, 0.470], [0.882, 0.392, 0.383], [0.949, 0.518, 0.295],
+  [0.988, 0.652, 0.211],
 ];
 const CYCLABLE = new Set(["line", "line3", "scatter", "stairs", "stem", "area", "error_bar"]);
 
@@ -67,7 +70,8 @@ function cycleDefaultColors(fig) {
   }
   const recolored = new Map(); // label -> new color, for legend swatches
   for (const group of byAxes.values()) {
-    if (group.length < 2) continue; // a single default series keeps the engine look
+    // recolor default-styled series to the plasma cycle — including a lone series,
+    // so even a single plot picks up the plasma default (index 0)
     group.forEach((p, i) => {
       const alpha = Array.isArray(p.color_rgba) && p.color_rgba.length > 3 ? p.color_rgba[3] : 1;
       p.color_rgba = [...MATLAB_ORDER[i % MATLAB_ORDER.length], alpha];
