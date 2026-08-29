@@ -694,7 +694,10 @@ export function renderFigureScene(scene, options = {}) {
     // instead would duplicate every line entry into every subplot.
     const labels = new Set(plots.map((p) => p.label).filter((l) => l != null));
     const entries = (fig.metadata?.legendEntries ?? []).filter((e) => labels.has(e.label));
-    const informative = entries.length > 1 || entries.some((e) => !AUTO_LABEL.test(String(e.label ?? "").trim()));
+    // Informative when the labels actually differ, or there's a single non-auto
+    // label. Many series sharing ONE label (e.g. 32× "fb(m,:)") says nothing.
+    const distinct = new Set(entries.map((e) => String(e.label ?? "").trim()));
+    const informative = distinct.size > 1 || (entries.length === 1 && !AUTO_LABEL.test([...distinct][0] ?? ""));
     const wanted = opt.legend === "always" ? entries.length > 0
       : opt.legend === "never" ? false
       : informative;

@@ -421,3 +421,7 @@ main:has(#app:not([hidden]) .has-sidebar) { }   /* app sidebar handled by base s
 /* per-cell Run button (notebook stateful execution) */
 .cell-bar .icon.run { color: var(--accent); font-weight: 600; border: 1px solid var(--edge); }
 .cell-bar .icon.run:hover { background: var(--grad); color: var(--accent-ink); border-color: transparent; }
+
+/* heatmap (nr_heatmap) — a plasma-colored canvas scaled to the column width */
+.nr-heatmap canvas { width: 100%; height: auto; display: block; border: 1px solid var(--edge); border-radius: 8px; }
+.nr-heatmap { margin: 0.8rem 0; }

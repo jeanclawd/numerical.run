@@ -20,6 +20,19 @@
 export const fmtNum = (v) =>
   Number.isInteger(v) ? String(v) : v.toPrecision(3).replace(/\.?0+$/, '');
 
+// plasma colormap LUT (0..1 → [r,g,b] 0-255), linearly interpolated between stops.
+const PLASMA = [
+  [13, 8, 135], [84, 2, 163], [139, 10, 165], [185, 50, 137],
+  [219, 92, 104], [244, 136, 73], [254, 188, 43], [240, 249, 33],
+];
+function plasma(t) {
+  t = t < 0 ? 0 : t > 1 ? 1 : (t === t ? t : 0);   // clamp; NaN → 0
+  const s = t * (PLASMA.length - 1);
+  const i = Math.floor(s), f = s - i;
+  const a = PLASMA[i], b = PLASMA[Math.min(i + 1, PLASMA.length - 1)];
+  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+}
+
 function el(tag, cls, text) {
   const node = document.createElement(tag);
   if (cls) node.className = cls;
@@ -150,6 +163,31 @@ export function renderElements(mount, elements, setState) {
       case 'figure': {
         const box = el('div', 'nr-figure');
         if (e.svg) box.innerHTML = e.svg;
+        put(box);
+        break;
+      }
+
+      case 'heatmap': {
+        const box = el('div', 'nr-figure nr-heatmap');
+        const rows = e.data ?? [];
+        const H = rows.length, W = H ? rows[0].length : 0;
+        if (H && W) {
+          let mn = Infinity, mx = -Infinity;
+          for (const r of rows) for (const v of r) { if (v < mn) mn = v; if (v > mx) mx = v; }
+          const span = (mx - mn) || 1;
+          const canvas = document.createElement('canvas');
+          canvas.width = W; canvas.height = H;
+          const ctx = canvas.getContext('2d');
+          const img = ctx.createImageData(W, H);
+          for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+            const [R, G, B] = plasma((rows[y][x] - mn) / span);
+            const px = ((H - 1 - y) * W + x) * 4;   // flip so row 0 sits at the bottom
+            img.data[px] = R; img.data[px + 1] = G; img.data[px + 2] = B; img.data[px + 3] = 255;
+          }
+          ctx.putImageData(img, 0, 0);
+          box.appendChild(canvas);
+        }
+        if (e.title) box.appendChild(el('div', 'nr-caption', e.title));
         put(box);
         break;
       }

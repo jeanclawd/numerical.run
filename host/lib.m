@@ -231,6 +231,17 @@ function nr_dataframe(M, varargin)
     nr_emit_(s);
 end
 
+function nr_heatmap(M, varargin)
+% nr_heatmap(M [, title]) — a matrix as a plasma-colored heatmap (row 1 at the
+% bottom). Values are normalized min..max. Handy for spectrograms.
+    s = struct('type', 'heatmap');
+    s.data = M;                    % jsonencode emits row-nested arrays
+    if nargin >= 2
+        s.title = varargin{1};
+    end
+    nr_emit_(s);
+end
+
 % ---- v0.2: widgets ----------------------------------------------------------------
 
 function v = nr_radio(label, options, varargin)
