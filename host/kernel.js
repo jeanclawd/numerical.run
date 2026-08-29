@@ -1,20 +1,30 @@
-/* numerical.run kernel — one RunMat WASM session, Streamlit-style whole-document
- * rerun, with per-cell output attribution.
+/* numerical.run kernel — one RunMat WASM session, driven two ways:
  *
- * This is the shared runtime behind BOTH modes. Every rerun resets the session
- * and executes the whole document top-to-bottom in a single executeRequest —
- * exactly Streamlit's model (adapted from streamlab's engine). The one addition
- * over streamlab is a cell-boundary marker emitted between code cells, so the
- * flat marker stream can be split back into per-cell output lists — which the
- * notebook view needs and the app view ignores.
+ *   Notebook mode : STATEFUL per-cell execution (Jupyter-style). Cells run
+ *                   against a persistent workspace; running one cell does NOT
+ *                   reset the session, so variables carry across cells and a
+ *                   cell sees whatever earlier cells left behind. Running a
+ *                   single cell reruns only that cell.
+ *
+ *   App mode      : WHOLE-DOCUMENT rerun (Streamlit-style). Every interaction
+ *                   resets the session and runs every cell top-to-bottom, so
+ *                   the page always reflects a clean run of the whole document.
+ *
+ * Both share the same session, the same sl_* widget library and %%SL%% marker
+ * protocol, the same figure pipeline, and the same widget state store.
+ *
+ * The one hard RunMat 0.6.1 constraint shaping this: script-local functions are
+ * redefined wholesale per executeRequest and don't persist across calls, so the
+ * sl_* library (and the baked sl_state_) is appended to EVERY execution — a
+ * single cell or the whole document. Workspace VARIABLES do persist across
+ * executeRequest, which is exactly what makes stateful cell execution work.
  *
  * Reused verbatim from streamlab: the RunMat WASM runtime, figrender, the
- * widget renderer (render.js), the sl_* widget library (lib.m), the %%SL%%
- * marker protocol, and the sl_state_() state-baking trick.
+ * widget renderer (render.js), the sl_* widget library (lib.m), and the marker
+ * protocol.
  */
 
 const MARKER = '%%SL%%';
-const CELL = '__cell__';
 
 export async function createKernel({ statusEl = null, runtimeUrl, figrenderUrl, renderUrl, library }) {
   const status = (t) => { if (statusEl) statusEl.textContent = t; };
@@ -94,97 +104,67 @@ export async function createKernel({ statusEl = null, runtimeUrl, figrenderUrl, 
     }
   }
 
-  // ---------------------------------------------------------------- run loop
-  let running = false;
-  let queued = null;         // latest {cells, onDone} awaiting a free loop
+  const fmtErr = (e) =>
+    `${e.identifier ?? 'error'}: ${e.message}` + (e.span?.line ? ` (line ${e.span.line})` : '');
 
-  // Assemble every code cell into one script, with a boundary marker before each
-  // so the flat output stream can be re-split per cell. Library + baked state go
-  // last, per the RunMat script-with-functions rule.
-  function assemble(cells) {
-    const parts = [];
-    cells.forEach((cell, i) => {
-      if (cell.kind !== 'code') return;
-      parts.push(`fprintf('%%%%SL%%%%{"type":"${CELL}","i":${i}}\\n');`);
-      parts.push(cell.source);
-    });
-    return `${parts.join('\n')}\n\n${library}\n${stateFunction()}`;
-  }
+  // ------------------------------------------------------ single-flight lock
+  // The wasm session is single-threaded: executeRequest calls must not overlap.
+  // A promise chain serializes every run; widget events fire on 'change', so
+  // this is enough without extra coalescing.
+  let chain = Promise.resolve();
+  const serialize = (fn) => (chain = chain.then(fn, fn));
 
-  // Split the flat, figure-attached element stream into { i -> elements[] } by
-  // the cell-boundary markers.
-  function splitByCell(elements) {
-    const byCell = new Map();
-    let cur = null;
-    for (const e of elements) {
-      if (e.type === CELL) { cur = e.i; byCell.set(cur, []); continue; }
-      if (cur === null) continue;             // stray output before any cell
-      byCell.get(cur).push(e);
-    }
-    return byCell;
-  }
-
-  // Run the whole document. Returns { byCell: Map<i, elements>, flat, error }.
-  async function _run(cells) {
-    await session.resetSession();
+  // ------------------------------------------------------ execution
+  // Run one code cell against the CURRENT workspace (no reset). Returns its
+  // output elements. sl_* library + baked state are appended per RunMat's rule.
+  async function _execCell(cell) {
+    if (cell.kind !== 'code') return [];
     streamBuf = ''; streaming = true;
     let result;
     try {
       result = await session.executeRequest({
-        source: { kind: 'text', name: '<numerical>', text: assemble(cells) }
+        source: { kind: 'text', name: '<cell>', text: `${cell.source}\n\n${library}\n${stateFunction()}` }
       });
     } catch (err) {
       streaming = false;
-      return { byCell: new Map(), flat: [], error: String(err?.message ?? err) };
+      return [{ type: 'error', text: String(err?.message ?? err) }];
     }
     streaming = false;
-
-    const flat = applyStateSets(parseStream(streamBuf));
-    let error = null;
-    if (result.error) {
-      error = `${result.error.identifier ?? 'error'}: ${result.error.message}` +
-              (result.error.span?.line ? ` (line ${result.error.span.line})` : '');
-    }
-    await attachFigures(flat, result.figuresTouched ?? []);
-
-    const byCell = splitByCell(flat);
-    if (error) {
-      // an error aborts execution — attribute it to the last cell that started,
-      // or expose it document-wide if nothing had started yet
-      const last = flat.filter((e) => e.type === CELL).map((e) => e.i).pop();
-      if (last != null) byCell.get(last).push({ type: 'error', text: error });
-    }
-    // document-order elements for the app view (cell markers stripped)
-    const appElements = flat.filter((e) => e.type !== CELL);
-    if (error) appElements.push({ type: 'error', text: error });
-    return { byCell, appElements, error };
+    const els = applyStateSets(parseStream(streamBuf));
+    if (result.error) els.push({ type: 'error', text: fmtErr(result.error) });
+    await attachFigures(els, result.figuresTouched ?? []);
+    return els;
   }
 
-  // Public rerun: coalesces bursts (a slider drag) to one in-flight run.
-  async function rerun(cells, onResult) {
-    if (running) { queued = { cells, onResult }; return; }
-    running = true;
-    try {
-      const out = await _run(cells);
-      onResult?.(out);
-    } finally {
-      running = false;
-      if (queued) { const q = queued; queued = null; void rerun(q.cells, q.onResult); }
-    }
+  function clearOneShot() { for (const l of oneShot) state.delete(l); oneShot.clear(); }
+
+  // ------------------------------------------------------ public API
+
+  // Stateful single-cell run (notebook mode): no reset, persistent workspace.
+  function runCell(cell) {
+    return serialize(async () => { const els = await _execCell(cell); clearOneShot(); return els; });
   }
 
-  // Widget interaction: update state and rerun the whole document.
-  function makeSetState(getCells, onResult) {
-    return (label, value, { once = false } = {}) => {
-      state.set(label, value);
-      if (once) oneShot.add(label);
-      void rerun(getCells(), (out) => {
-        for (const label of oneShot) state.delete(label);
-        oneShot.clear();
-        onResult?.(out);
-      });
-    };
+  // Reset the workspace (notebook "restart", and the start of every app rerun).
+  function reset() { return serialize(() => session.resetSession()); }
+
+  // Whole-document run: reset, then execute every code cell top-to-bottom
+  // (stateful between cells). Returns Map<cellIndex, elements>. Used by app mode
+  // on every interaction, and by notebook "Run all".
+  function runAll(cells) {
+    return serialize(async () => {
+      await session.resetSession();
+      const byCell = new Map();
+      for (let i = 0; i < cells.length; i++) {
+        if (cells[i].kind === 'code') byCell.set(i, await _execCell(cells[i]));
+      }
+      clearOneShot();
+      return byCell;
+    });
   }
 
-  return { state, rerun, makeSetState, renderElements };
+  // Record a widget interaction before triggering a run (once=button semantics).
+  const markWidget = (label, value, once = false) => { state.set(label, value); if (once) oneShot.add(label); };
+
+  return { state, markWidget, runCell, runAll, reset, renderElements };
 }

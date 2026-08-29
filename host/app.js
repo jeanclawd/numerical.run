@@ -1,14 +1,18 @@
 /* numerical.run shell — two modes over one .nb.md document and one kernel.
  *
- *   Notebook mode : cells (code + markdown), edit + run-all, per-cell output.
- *   App mode      : the same document rendered Streamlit-style — widgets and
- *                   outputs in place, code hidden, prose interleaved.
- *   Widgets panel : WYSIWYG — click a widget to write its sl_* call into the
- *                   active code cell (or a new one) and rerun.
+ *   Notebook mode : STATEFUL cell execution (Jupyter-style). Each code cell has
+ *                   its own ▸ Run (and Ctrl+Enter); running a cell executes it
+ *                   against the persistent workspace and updates only that
+ *                   cell's output. A widget inside a cell's output reruns just
+ *                   that cell. "Run all" resets and runs every cell in order.
  *
- * Both modes call the same kernel.rerun(doc.cells): every interaction reruns the
- * whole document top-to-bottom. The kernel returns per-cell output; notebook
- * mode shows it under each cell, app mode interleaves it with the prose cells.
+ *   App mode      : WHOLE-DOCUMENT rerun (Streamlit-style). Every interaction
+ *                   resets the session and runs the whole document top-to-bottom;
+ *                   widgets and outputs render in place, code hidden, prose
+ *                   interleaved.
+ *
+ *   Widgets panel : WYSIWYG — click a widget to write its sl_* call into the
+ *                   active code cell (or a new one) and run.
  */
 
 const V = document.body.dataset.v || String(Date.now());
@@ -33,57 +37,79 @@ const kernel = await createKernel({
 // ---------------------------------------------------------------- document state
 let doc = { frontmatter: null, cells: [] };
 let mode = 'notebook';           // 'notebook' | 'app'
-let lastByCell = new Map();      // cell-index -> output elements (from last run)
-let activeId = null;             // last-focused code cell, WYSIWYG target
-const counters = {};             // per-kind label counter
+let lastByCell = new Map();      // cell-index -> output elements
+let activeId = null;             // last-focused code cell (WYSIWYG target)
+const counters = {};             // per-kind widget label counter
+const outNodes = new Map();      // cell-id -> its .cell-out node (notebook)
 
 const status = (t) => { $('status').textContent = t; };
-const setState = kernel.makeSetState(() => doc.cells, (out) => { lastByCell = out.byCell; renderCurrent(); });
+const cellIndex = (id) => doc.cells.findIndex((c) => c.id === id);
+const codeCellById = (id) => doc.cells.find((c) => c.id === id && c.kind === 'code');
 
-// ---------------------------------------------------------------- run
-function run() {
-  status('running…');
+// ---------------------------------------------------------------- running
+function timed(label, promise, done) {
+  status(`${label}…`);
   const t0 = performance.now();
-  kernel.rerun(doc.cells, (out) => {
-    lastByCell = out.byCell;
-    status(out.error ? `error · ran in ${Math.round(performance.now() - t0)} ms`
-                     : `ran in ${Math.round(performance.now() - t0)} ms`);
-    renderCurrent();
+  promise.then((r) => { status(`${label} · ${Math.round(performance.now() - t0)} ms`); done(r); });
+}
+
+// App mode: whole-document rerun.
+function runApp() { timed('ran', kernel.runAll(doc.cells), (byCell) => { lastByCell = byCell; renderApp(); }); }
+
+// Notebook: run all cells (reset + top-to-bottom), refresh every output.
+function runAllNotebook() { timed('ran all', kernel.runAll(doc.cells), (byCell) => { lastByCell = byCell; refreshOutputs(); }); }
+
+// Notebook: run one cell statefully, refresh only its output.
+function runOneCell(cell) {
+  timed('ran cell', kernel.runCell(cell), (els) => {
+    lastByCell.set(cellIndex(cell.id), els);
+    updateCellOut(cell.id, els);
   });
 }
 
-// ---------------------------------------------------------------- rendering
-function renderCurrent() { mode === 'app' ? renderApp() : renderNotebook(); }
+function runForMode() { mode === 'app' ? runApp() : runAllNotebook(); }
 
-function autosize(ta) {
-  ta.style.height = 'auto';
-  ta.style.height = Math.max(ta.scrollHeight, 34) + 'px';
+// ---------------------------------------------------------------- setState
+// A widget interaction: notebook reruns just the owning cell; app reruns all.
+function cellSetState(cell) {
+  return (label, value, opts = {}) => {
+    kernel.markWidget(label, value, opts.once);
+    timed('ran cell', kernel.runCell(cell), (els) => { lastByCell.set(cellIndex(cell.id), els); updateCellOut(cell.id, els); });
+  };
+}
+function appSetState(label, value, opts = {}) {
+  kernel.markWidget(label, value, opts.once);
+  timed('ran', kernel.runAll(doc.cells), (byCell) => { lastByCell = byCell; renderApp(); });
 }
 
-function cellIndex(id) { return doc.cells.findIndex((c) => c.id === id); }
+// ---------------------------------------------------------------- notebook view
+function autosize(ta) { ta.style.height = 'auto'; ta.style.height = Math.max(ta.scrollHeight, 34) + 'px'; }
 
 function moveCell(id, dir) {
   const i = cellIndex(id), j = i + dir;
   if (j < 0 || j >= doc.cells.length) return;
   [doc.cells[i], doc.cells[j]] = [doc.cells[j], doc.cells[i]];
-  renderNotebook(); run();
+  renderNotebook(); runAllNotebook();
 }
-function deleteCell(id) { doc.cells = doc.cells.filter((c) => c.id !== id); renderNotebook(); run(); }
+function deleteCell(id) { doc.cells = doc.cells.filter((c) => c.id !== id); renderNotebook(); runAllNotebook(); }
 function addCell(kind, afterId) {
   const cell = newCell(kind, kind === 'markdown' ? '_New text cell — double-click to edit._' : '');
-  const i = afterId ? cellIndex(afterId) + 1 : doc.cells.length;
-  doc.cells.splice(i, 0, cell);
+  doc.cells.splice(afterId ? cellIndex(afterId) + 1 : doc.cells.length, 0, cell);
   activeId = cell.id;
   renderNotebook();
-  if (kind === 'code') run();
 }
 
 function toolbar(cell) {
   const bar = document.createElement('div');
   bar.className = 'cell-bar';
+  if (cell.kind === 'code') {
+    const runb = document.createElement('button');
+    runb.className = 'icon run'; runb.textContent = '▸ Run'; runb.title = 'Run this cell (Ctrl+Enter)';
+    runb.addEventListener('click', () => runOneCell(cell));
+    bar.appendChild(runb);
+  }
   const badge = document.createElement('span');
-  badge.className = 'cell-badge';
-  badge.textContent = cell.kind === 'code' ? 'code' : 'md';
+  badge.className = 'cell-badge'; badge.textContent = cell.kind === 'code' ? 'code' : 'md';
   bar.appendChild(badge);
   const spacer = document.createElement('span'); spacer.style.flex = '1'; bar.appendChild(spacer);
   const mk = (label, title, fn) => {
@@ -98,9 +124,22 @@ function toolbar(cell) {
   return bar;
 }
 
+function updateCellOut(cellId, els) {
+  const out = outNodes.get(cellId);
+  if (!out) return;
+  out.innerHTML = '';
+  const cell = codeCellById(cellId);
+  if (els?.length && cell) kernel.renderElements(out, els, cellSetState(cell));
+}
+
+function refreshOutputs() {
+  doc.cells.forEach((cell, i) => { if (cell.kind === 'code') updateCellOut(cell.id, lastByCell.get(i) ?? []); });
+}
+
 function renderNotebook() {
   const root = $('notebook');
   root.innerHTML = '';
+  outNodes.clear();
   doc.cells.forEach((cell, i) => {
     const box = document.createElement('div');
     box.className = `nb-cell ${cell.kind}${cell.id === activeId ? ' active' : ''}`;
@@ -112,31 +151,26 @@ function renderNotebook() {
       ta.addEventListener('input', () => { cell.source = ta.value; autosize(ta); });
       ta.addEventListener('focus', () => { activeId = cell.id; updatePaletteTarget(); box.classList.add('active'); });
       ta.addEventListener('keydown', (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); run(); }
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runOneCell(cell); }
       });
       box.appendChild(ta);
       const out = document.createElement('div');
       out.className = 'cell-out';
+      outNodes.set(cell.id, out);
       const els = lastByCell.get(i) ?? [];
-      if (els.length) kernel.renderElements(out, els, setState);
+      if (els.length) kernel.renderElements(out, els, cellSetState(cell));
       box.appendChild(out);
       setTimeout(() => autosize(ta), 0);
     } else {
       const view = document.createElement('div');
-      view.className = 'md';
-      view.innerHTML = mdToHtml(cell.source);
-      view.title = 'Double-click to edit';
+      view.className = 'md'; view.innerHTML = mdToHtml(cell.source); view.title = 'Double-click to edit';
       view.addEventListener('dblclick', () => {
         const ta = document.createElement('textarea');
         ta.className = 'cell-src'; ta.spellcheck = false; ta.value = cell.source;
         ta.addEventListener('input', () => autosize(ta));
-        const commit = () => { cell.source = ta.value; renderNotebook(); };
-        ta.addEventListener('blur', commit);
-        ta.addEventListener('keydown', (e) => {
-          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); ta.blur(); }
-        });
-        box.replaceChild(ta, view);
-        ta.focus(); autosize(ta);
+        ta.addEventListener('blur', () => { cell.source = ta.value; renderNotebook(); });
+        ta.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); ta.blur(); } });
+        box.replaceChild(ta, view); ta.focus(); autosize(ta);
       });
       box.appendChild(view);
     }
@@ -153,15 +187,17 @@ function renderNotebook() {
   root.appendChild(add);
 }
 
+// ---------------------------------------------------------------- app view
 function renderApp() {
-  const mount = $('app');
   const elements = [];
   doc.cells.forEach((cell, i) => {
     if (cell.kind === 'markdown') elements.push({ type: 'text', html: mdToHtml(cell.source) });
     else elements.push(...(lastByCell.get(i) ?? []));
   });
-  kernel.renderElements(mount, elements, setState);
+  kernel.renderElements($('app'), elements, appSetState);
 }
+
+function renderCurrent() { mode === 'app' ? renderApp() : renderNotebook(); }
 
 // ---------------------------------------------------------------- WYSIWYG palette
 const WIDGETS = [
@@ -180,33 +216,25 @@ const WIDGETS = [
   { kind: 'divider',      bind: false, label: 'Divider',     snip: () => `sl_divider();` },
 ];
 
-function uniq(kind) {
-  counters[kind] = (counters[kind] || 0) + 1;
-  return { name: `${kind}${counters[kind]}`, label: `${kind} ${counters[kind]}` };
-}
+function uniq(kind) { counters[kind] = (counters[kind] || 0) + 1; return { name: `${kind}${counters[kind]}`, label: `${kind} ${counters[kind]}` }; }
 
 function insertWidget(w) {
   const { name, label } = uniq(w.kind);
   const snippet = w.snip(name, label);
-  let cell = doc.cells.find((c) => c.id === activeId && c.kind === 'code');
+  let cell = codeCellById(activeId);
   if (!cell) { cell = newCell('code', ''); doc.cells.push(cell); activeId = cell.id; }
   cell.source = cell.source.trim() ? `${cell.source.replace(/\s+$/, '')}\n${snippet}` : snippet;
   if (w.bind) cell.meta.widget = { kind: w.kind, bind: name };
-  if (mode !== 'app') renderNotebook();
-  run();
+  if (mode === 'app') { renderApp(); runApp(); }
+  else { renderNotebook(); runOneCell(cell); }
 }
 
-function updatePaletteTarget() {
-  const cell = doc.cells.find((c) => c.id === activeId && c.kind === 'code');
-  $('palette-target').textContent = cell ? `→ active code cell` : '→ new cell';
-}
+function updatePaletteTarget() { $('palette-target').textContent = codeCellById(activeId) ? '→ active code cell' : '→ new cell'; }
 
 function buildPalette() {
   const grid = $('palette-grid');
   for (const w of WIDGETS) {
-    const b = document.createElement('button');
-    b.className = 'palette-item';
-    b.textContent = w.label;
+    const b = document.createElement('button'); b.className = 'palette-item'; b.textContent = w.label;
     b.addEventListener('click', () => insertWidget(w));
     grid.appendChild(b);
   }
@@ -217,21 +245,22 @@ function setMode(m) {
   mode = m;
   $('notebook').hidden = m !== 'notebook';
   $('app').hidden = m !== 'app';
+  $('run-btn').textContent = m === 'app' ? 'Rerun ▸' : 'Run all ▸';
+  $('run-btn').title = m === 'app' ? 'Rerun the whole document' : 'Reset and run every cell top-to-bottom';
   document.querySelectorAll('#mode button').forEach((b) => b.classList.toggle('on', b.dataset.mode === m));
-  renderCurrent();
+  if (m === 'app') runApp(); else renderNotebook();
 }
 
-function loadText(text) {
+function loadText(text, run = true) {
   doc = parseNbMd(text);
   for (const k in counters) delete counters[k];
+  lastByCell = new Map();
   activeId = doc.cells.find((c) => c.kind === 'code')?.id ?? null;
   renderNotebook();
-  run();
+  if (run) (mode === 'app' ? runApp() : runAllNotebook());
 }
 
-async function loadExample(name) {
-  loadText(await (await fetch(`./examples/${name}?v=${V}`)).text());
-}
+async function loadExample(name) { loadText(await (await fetch(`./examples/${name}?v=${V}`)).text()); }
 
 async function boot() {
   const params = new URLSearchParams(location.search);
@@ -249,7 +278,7 @@ const exSel = $('example');
 for (const e of EXAMPLES) { const o = document.createElement('option'); o.value = e; o.textContent = e.replace('.nb.md', ''); exSel.appendChild(o); }
 exSel.addEventListener('change', () => void loadExample(exSel.value));
 document.querySelectorAll('#mode button').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
-$('run-btn').addEventListener('click', () => run());
+$('run-btn').addEventListener('click', () => runForMode());
 $('design-btn').addEventListener('click', () => { const p = $('palette'); p.hidden = !p.hidden; updatePaletteTarget(); });
 $('palette-close').addEventListener('click', () => { $('palette').hidden = true; });
 $('share-btn').addEventListener('click', async () => {
@@ -258,9 +287,9 @@ $('share-btn').addEventListener('click', async () => {
   catch { prompt('share link:', url); }
 });
 document.addEventListener('keydown', (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') { e.preventDefault(); run(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') { e.preventDefault(); runForMode(); }
 });
 
 buildPalette();
 await boot();
-window.__numerical = { get doc() { return doc; }, serialize: () => serializeNbMd(doc), run };
+window.__numerical = { get doc() { return doc; }, serialize: () => serializeNbMd(doc), runApp, runAllNotebook };
