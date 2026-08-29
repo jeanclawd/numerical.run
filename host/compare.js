@@ -15,9 +15,9 @@ const FIGR = CFG.figrender || './runtime/figrender.mjs';
 const MONACO = CFG.monaco || './monaco';
 const q = (s) => document.querySelector(s);
 const VARIANT = Number(new URLSearchParams(location.search).get('variant') || 0);
-const NAMES = { 1: 'Notebook is the editor', 2: 'Editor + App only', 3: 'Editor + App + output strip' };
+const NAMES = { 1: 'Notebook is the editor', 2: 'Editor + App only' };
 
-if (!VARIANT) {
+if (VARIANT !== 1 && VARIANT !== 2) {
   // chooser stays visible (markup handles it); nothing else to do.
 } else {
   q('#chooser').hidden = true;
@@ -65,7 +65,7 @@ function runAll() {
 }
 function afterRun() {
   if (VARIANT === 1) { renderCellsOutputs(); if (appVisible) renderApp(); }
-  else { renderApp(); if (VARIANT === 3) renderStrip(); }
+  else renderApp();
 }
 function appSetState(label, value, opts = {}) {
   kernel.markWidget(label, value, opts.once);
@@ -97,11 +97,10 @@ async function ensureMonaco() {
 }
 const theme = () => (matchMedia('(prefers-color-scheme: dark)').matches ? 'vs-dark' : 'vs');
 
-// ---------------------------------------------------------------- V2 / V3: Monaco blob
+// ---------------------------------------------------------------- V2: Monaco blob
 async function initBlob() {
   q('#cells').hidden = true; q('#editor').style.display = '';
   q('#editor-head').textContent = 'editor · .nb.md — Run to render';
-  if (VARIANT === 3) { q('#out-strip').hidden = false; }
   await ensureMonaco();
   blobEditor = monaco.editor.create(q('#editor'), {
     value: source, language: 'markdown', theme: theme(), fontSize: 13, minimap: { enabled: false },
@@ -110,22 +109,6 @@ async function initBlob() {
   });
   blobEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, runAll);
   requestAnimationFrame(() => blobEditor.layout());
-}
-function renderStrip() {
-  const strip = q('#out-strip'); strip.innerHTML = '';
-  const head = document.createElement('div'); head.className = 'osh'; head.textContent = 'per-cell output'; strip.appendChild(head);
-  doc.cells.forEach((cell, i) => {
-    if (cell.kind !== 'code') return;
-    const els = lastByCell.get(i) ?? [];
-    const err = els.filter((e) => e.type === 'error').map((e) => e.text);
-    const raw = els.filter((e) => e.type === 'raw').map((e) => e.text);
-    const widgets = els.filter((e) => ['slider', 'metric', 'figure', 'checkbox', 'selectbox', 'radio', 'text', 'number_input', 'text_input', 'button', 'multiselect'].includes(e.type)).length;
-    const row = document.createElement('div'); row.className = 'orow' + (err.length ? ' err' : '');
-    const oc = document.createElement('span'); oc.className = 'oc'; oc.textContent = `cell ${i + 1}`;
-    const om = document.createElement('span'); om.className = 'om';
-    om.textContent = err.length ? err.join('\n') : (raw.join('\n') || (widgets ? `✓ ${widgets} element(s)` : '✓ ok'));
-    row.append(oc, om); strip.appendChild(row);
-  });
 }
 
 // ---------------------------------------------------------------- V1: notebook is the editor
@@ -147,7 +130,17 @@ async function initV1() {
   await ensureMonaco();
   renderCells();
 }
-function autoHeight(ed, el) { const n = Math.max(1, ed.getModel().getLineCount()); el.style.height = Math.min(400, n * 19 + 12) + 'px'; ed.layout(); }
+// Grow the editor to fit its content exactly — a notebook cell has no inner
+// scrollbar; the page scrolls, not the cell.
+const CELL_OPTS = {
+  language: 'markdown', theme: theme(), fontSize: 13, lineHeight: 19, minimap: { enabled: false },
+  lineNumbers: 'off', wordWrap: 'on', folding: false, tabSize: 4, automaticLayout: true,
+  scrollBeyondLastLine: false, overviewRulerLanes: 0, hideCursorInOverviewRuler: true,
+  renderLineHighlight: 'none', contextmenu: false,
+  scrollbar: { vertical: 'hidden', horizontal: 'hidden', handleMouseWheel: false, alwaysConsumeMouseWheel: false, verticalScrollbarSize: 0, horizontalScrollbarSize: 0 },
+  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+};
+function autoHeight(ed, el) { el.style.height = (ed.getContentHeight() + 2) + 'px'; ed.layout(); }
 function renderCells() {
   const root = q('#cells'); root.innerHTML = ''; cellEditors.clear();
   doc.cells.forEach((cell) => root.appendChild(cellNode(cell)));
@@ -167,9 +160,10 @@ function cellNode(cell) {
 
   if (cell.kind === 'code') {
     const edEl = document.createElement('div'); edEl.className = 'cell-ed'; box.appendChild(edEl);
-    const ed = monaco.editor.create(edEl, { value: cell.source, language: 'markdown', theme: theme(), fontSize: 13, minimap: { enabled: false }, lineNumbers: 'off', scrollBeyondLastLine: false, wordWrap: 'on', folding: false, tabSize: 4, automaticLayout: true, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', scrollbar: { alwaysConsumeMouseWheel: false } });
+    const ed = monaco.editor.create(edEl, { value: cell.source, ...CELL_OPTS });
     cellEditors.set(cell.id, ed);
-    ed.onDidChangeModelContent(() => { cell.source = ed.getValue(); autoHeight(ed, edEl); });
+    ed.onDidChangeModelContent(() => { cell.source = ed.getValue(); });
+    ed.onDidContentSizeChange(() => autoHeight(ed, edEl));
     ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => runCellById(cell));
     requestAnimationFrame(() => autoHeight(ed, edEl));
     const out = document.createElement('div'); out.className = 'cell-out'; out.dataset.cellOut = cell.id; box.appendChild(out);
@@ -178,9 +172,10 @@ function cellNode(cell) {
     const view = document.createElement('div'); view.className = 'md-view'; view.innerHTML = mdToHtml(cell.source); view.title = 'double-click to edit';
     view.addEventListener('dblclick', () => {
       const edEl = document.createElement('div'); edEl.className = 'cell-ed'; box.replaceChild(edEl, view);
-      const ed = monaco.editor.create(edEl, { value: cell.source, language: 'markdown', theme: theme(), fontSize: 13, minimap: { enabled: false }, lineNumbers: 'off', scrollBeyondLastLine: false, wordWrap: 'on', folding: false, automaticLayout: true });
-      autoHeight(ed, edEl); ed.focus();
-      ed.onDidChangeModelContent(() => { cell.source = ed.getValue(); autoHeight(ed, edEl); });
+      const ed = monaco.editor.create(edEl, { value: cell.source, ...CELL_OPTS });
+      requestAnimationFrame(() => { autoHeight(ed, edEl); ed.focus(); });
+      ed.onDidChangeModelContent(() => { cell.source = ed.getValue(); });
+      ed.onDidContentSizeChange(() => autoHeight(ed, edEl));
       ed.onDidBlurEditorWidget(() => { renderCells(); });
     });
     box.appendChild(view);

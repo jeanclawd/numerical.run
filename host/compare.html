@@ -107,7 +107,7 @@
   <div id="chooser">
     <div class="inner">
       <h1>Consolidating the editor & notebook</h1>
-      <p class="lead">Three ways to remove the redundancy of showing the source twice. Open each, toggle to the app, and get a feel. Same document and kernel underneath.</p>
+      <p class="lead">Two ways to remove the redundancy of showing the source twice. Open each, toggle to the app, and get a feel. Same document and kernel underneath.</p>
       <div class="cards">
         <a class="card" href="./compare.html?variant=1">
           <div class="n">OPTION 1</div>
@@ -123,13 +123,6 @@
           <div class="tick"><span class="good">＋</span> simplest; source stays one place</div>
           <div class="tick"><span class="bad">−</span> no per-cell output attribution</div>
         </a>
-        <a class="card" href="./compare.html?variant=3">
-          <div class="n">OPTION 3</div>
-          <h3>Editor + App + output strip</h3>
-          <p>Monaco + App preview, plus a thin collapsible strip showing each cell's stdout/errors — the debug value of the notebook tab, without re-rendering the source.</p>
-          <div class="tick"><span class="good">＋</span> keeps per-cell feedback, no redundancy</div>
-          <div class="tick"><span class="bad">−</span> a third panel to look at</div>
-        </a>
       </div>
     </div>
   </div>
@@ -144,7 +137,6 @@
       <div class="panehead"><span>preview · app</span></div>
       <div class="preview"><div id="pv-app"></div></div>
     </section>
-    <div id="out-strip" hidden></div>
     <div class="statusbar" id="statusbar" hidden><span id="status2"></span><span class="spacer"></span><span id="dev-time"></span></div>
   </main>
 
