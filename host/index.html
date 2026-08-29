@@ -30,6 +30,25 @@
     .seg button + button { border-left: 1px solid var(--edge); }
     .seg button.on { background: var(--grad); color: var(--accent-ink); font-weight: 600; }
 
+    /* share: gradient firework + temporary link toast */
+    #share-btn.pop { animation: share-pop .3s ease; }
+    @keyframes share-pop { 0%{transform:scale(1);} 40%{transform:scale(.9);} 100%{transform:scale(1);} }
+    .fx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 1000; }
+    .fx { position: fixed; width: 9px; height: 9px; border-radius: 2px; transform: translate(-50%,-50%); opacity: 0; box-shadow: 0 0 6px rgba(139,124,255,.6); animation: fx-burst 950ms cubic-bezier(.15,.7,.3,1) forwards; }
+    @keyframes fx-burst {
+      0% { transform: translate(-50%,-50%) scale(.5) rotate(0deg); opacity: 1; }
+      70% { opacity: 1; }
+      100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) + 26px)) scale(1) rotate(260deg); opacity: 0; }
+    }
+    #link-toast { position: fixed; left: 50%; top: .9rem; transform: translate(-50%,-24px); z-index: 1001;
+      display: flex; align-items: center; gap: .5rem; max-width: min(92vw, 560px);
+      padding: .5rem .85rem; border-radius: 999px; background: var(--bg); border: 1px solid var(--edge);
+      box-shadow: 0 10px 34px rgba(0,0,0,.20); opacity: 0; pointer-events: none;
+      transition: opacity .28s ease, transform .28s ease; }
+    #link-toast.show { opacity: 1; transform: translate(-50%, 0); }
+    #link-toast .lt-txt { font: 12px ui-monospace, Menlo, monospace; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #link-toast .lt-tag { background: var(--grad); color: var(--accent-ink); font-weight: 600; border-radius: 999px; padding: .08rem .55rem; font-size: .7rem; white-space: nowrap; }
+
     main { display: flex; flex: 1; min-height: 0; padding: 0; justify-content: flex-start; }
     .pane { display: flex; flex-direction: column; min-width: 0; }
     #editor-pane { flex: 1; border-right: 1px solid var(--edge); padding: 0; }

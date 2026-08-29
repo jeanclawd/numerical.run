@@ -259,6 +259,37 @@ function insertWidget(w) {
 }
 function buildPalette() { const g = q('#palette-grid'); for (const w of WIDGETS) { const b = document.createElement('button'); b.className = 'palette-item'; b.textContent = w.label; b.onclick = () => insertWidget(w); g.appendChild(b); } }
 
+// ---------------------------------------------------------------- share flourish
+const FX_COLORS = ['#3b82f6', '#6366f1', '#8b5cf6', '#a855f7'];
+function fireworks(originEl) {
+  const r = originEl.getBoundingClientRect();
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  const layer = document.createElement('div'); layer.className = 'fx-layer';
+  const N = 30;
+  for (let i = 0; i < N; i++) {
+    const p = document.createElement('span'); p.className = 'fx';
+    const ang = (Math.PI * 2 * i) / N + Math.random() * 0.4;
+    const dist = 55 + Math.random() * 80;
+    p.style.setProperty('--dx', `${Math.cos(ang) * dist}px`);
+    p.style.setProperty('--dy', `${Math.sin(ang) * dist}px`);
+    p.style.left = `${cx}px`; p.style.top = `${cy}px`;
+    p.style.background = FX_COLORS[i % FX_COLORS.length];
+    p.style.animationDelay = `${Math.random() * 60}ms`;
+    layer.appendChild(p);
+  }
+  document.body.appendChild(layer);
+  setTimeout(() => layer.remove(), 1200);
+}
+function showLinkToast(url) {
+  let t = document.getElementById('link-toast');
+  if (!t) { t = document.createElement('div'); t.id = 'link-toast'; document.body.appendChild(t); }
+  const short = url.length > 62 ? `${url.slice(0, 36)}…${url.slice(-18)}` : url;
+  t.innerHTML = `<span>🔗</span><span class="lt-txt"></span><span class="lt-tag">copied</span>`;
+  t.querySelector('.lt-txt').textContent = short;
+  t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
+  clearTimeout(t._timer); t._timer = setTimeout(() => t.classList.remove('show'), 3400);
+}
+
 // ---------------------------------------------------------------- shell wiring
 function shareLink() { return `${location.origin}${location.pathname}#code=${b64encode(currentSource())}`; }
 function wire() {
@@ -270,7 +301,16 @@ function wire() {
   q('#nav-app').addEventListener('click', () => setEditing(false));
   q('#widgets-btn').addEventListener('click', () => { const p = q('#palette'); p.hidden = !p.hidden; });
   q('#palette-close').addEventListener('click', () => { q('#palette').hidden = true; });
-  q('#share-btn').addEventListener('click', async () => { const url = shareLink(); try { await navigator.clipboard.writeText(url); status(`link copied (${url.length} chars)`); } catch { prompt('share link:', url); } });
+  q('#share-btn').addEventListener('click', async () => {
+    const btn = q('#share-btn');          // capture before await (currentTarget nulls out)
+    const url = shareLink();
+    let copied = true;
+    try { await navigator.clipboard.writeText(url); } catch { copied = false; }
+    btn.classList.remove('pop'); void btn.offsetWidth; btn.classList.add('pop');
+    fireworks(btn); showLinkToast(url);
+    status(copied ? `link copied (${url.length} chars)` : 'link ready');
+    if (!copied) prompt('share link:', url);
+  });
   buildPalette();
 }
 
