@@ -7,79 +7,71 @@
   <title>numerical.run</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="./style.css?v=__V__">
-  <script>
-    // Injected per environment (self-hosted box vs. Netlify/CDN). Only the heavy
-    // assets (the RunMat wasm runtime and Monaco) may live off-page; the app's
-    // own JS/CSS stay relative to this page.
-    window.NUMCFG = { runtime: '__RUNTIME__', figrender: '__FIGRENDER__', monaco: '__MONACO__' };
-  </script>
+  <script>window.NUMCFG = { runtime: '__RUNTIME__', figrender: '__FIGRENDER__', monaco: '__MONACO__' };</script>
   <style>
     html, body { height: 100%; margin: 0; }
+    [hidden] { display: none !important; }
     body { display: flex; flex-direction: column; background: var(--bg); color: var(--ink); }
-    header {
-      display: flex; align-items: center; gap: 0.5rem 0.85rem; padding: 0.55rem 1rem;
-      border-bottom: 1px solid var(--edge); background: var(--panel); flex: none; flex-wrap: wrap; position: relative;
-    }
+    header { display: flex; align-items: center; gap: 0.5rem 0.85rem; padding: 0.55rem 1rem; border-bottom: 1px solid var(--edge); background: var(--panel); flex: none; flex-wrap: wrap; position: relative; }
     header::after { content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:var(--grad); opacity:.9; }
-    .wordmark { font-weight: 600; }
-    .wordmark b { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 800; }
+    .wordmark { font-weight: 600; } .wordmark b { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 800; }
     .tag { font-size: 0.72rem; color: var(--muted); }
     header .spacer { flex: 1; }
     button, select { font: inherit; }
-    #run-btn { background: var(--grad); color: var(--accent-ink); border: none; font-weight: 600; padding: 0.32rem 0.85rem; border-radius: 7px; cursor: pointer; }
+    #run-btn { background: var(--grad); color: var(--accent-ink); border: none; font-weight: 600; padding: 0.3rem 0.85rem; border-radius: 7px; cursor: pointer; }
     #run-btn:hover { filter: brightness(1.07); }
     .kbd { font: 11px ui-monospace, Menlo, monospace; color: var(--accent-ink); opacity: .8; margin-left: 0.35rem; }
     button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--edge); border-radius: 7px; padding: 0.3rem 0.7rem; font-size: 0.82rem; cursor: pointer; }
     button.ghost:hover { color: var(--ink); border-color: var(--accent); }
     select { background: var(--panel); color: var(--ink); border: 1px solid var(--edge); border-radius: 7px; padding: 0.28rem 0.5rem; font-size: 0.82rem; }
 
-    /* stage: two panes; edit shows the editor + tabbed preview, view shows the app only */
-    /* NB: override the inherited streamlab `main` (centered + padded) fully, or it
-       insets/centers the editor and breaks Monaco's anchoring, esp. on mobile. */
     main { display: flex; flex: 1; min-height: 0; padding: 0; justify-content: flex-start; }
     .pane { display: flex; flex-direction: column; min-width: 0; }
-    /* padding:0 overrides a stale streamlab `#editor-pane` rule in style.css */
     #editor-pane { flex: 1; border-right: 1px solid var(--edge); padding: 0; }
-    .right { width: 46%; min-width: 320px; }
+    .right { width: 46%; min-width: 300px; }
     .panehead { display: flex; align-items: center; gap: 0.45rem; padding: 0.35rem 0.7rem; border-bottom: 1px solid var(--edge); background: var(--panel); font-size: 0.72rem; color: var(--muted); }
     #editor { flex: 1; min-height: 0; }
-    .seg { display: inline-flex; border: 1px solid var(--edge); border-radius: 7px; overflow: hidden; }
-    .seg button { border: none; background: var(--panel); padding: 0.2rem 0.6rem; font-size: 0.75rem; cursor: pointer; color: var(--muted); }
-    .seg button + button { border-left: 1px solid var(--edge); }
-    .seg button.on { background: var(--grad); color: var(--accent-ink); font-weight: 600; }
     .preview { flex: 1; min-height: 0; overflow: auto; background: var(--bg); }
-    .pv { display: none; }
-    .pv.on { display: block; }
     #pv-app { padding: 1.4rem 1.2rem 3rem; max-width: 46rem; margin: 0 auto; }
-    #pv-nb  { padding: 1rem 1rem 3rem; }
     .statusbar { display: flex; gap: 1rem; align-items: center; padding: 0.35rem 0.9rem; border-top: 1px solid var(--edge); background: var(--panel); font: 11.5px ui-monospace, Menlo, monospace; color: var(--muted); }
     .statusbar .spacer { flex: 1; }
 
-    /* notebook preview cells (read-only; edit in Monaco) */
-    .pv-cell { border: 1px solid var(--edge); border-radius: 9px; margin: 0.6rem 0; overflow: hidden; }
-    .pv-cell.md { border-style: dashed; padding: 0.5rem 0.8rem; }
-    .pv-code pre { margin: 0; padding: 0.55rem 0.75rem; font: 12px/1.5 ui-monospace, Menlo, monospace; background: var(--panel); border-bottom: 1px solid var(--edge); white-space: pre-wrap; overflow-x: auto; }
-    .pv-out { padding: 0.2rem 0.75rem 0.5rem; }
-    .pv-out:empty { display: none; }
-
-    /* ---- VIEW mode: hide editor + tabs, app goes full width ---- */
-    #stage.view #editor-pane { display: none; }
+    /* ---- layout by stage state ---- */
+    /* view: full-width app; no editor */
+    #stage.view #editor-pane, #stage.view #cells { display: none; }
     #stage.view .right { width: auto; flex: 1; }
-    #stage.view #pv-tabs, #stage.view .statusbar { display: none; }
-    #stage.view #pv-nb { display: none; }
-    #stage.view #pv-app { display: block; }
-    /* ---- EDIT-only chrome hidden in view ---- */
-    .edit-only { display: none; }
+    #stage.view .panehead { display: none; }
+    /* edit + classic: monaco blob (left) + app preview (right) */
+    #stage.classic #cells { display: none; }
+    /* edit + notebook: full-width editable cells */
+    #stage.notebook #editor-pane, #stage.notebook .right { display: none; }
+    #stage.notebook #cells { display: block; }
+
+    #cells { max-width: 60rem; margin: 0 auto; width: 100%; padding: 1.2rem 1rem 4rem; overflow: auto; }
+    .nbc { border: 1px solid var(--edge); border-radius: 10px; margin: 0.7rem 0; overflow: hidden; background: var(--bg); }
+    .nbc.markdown { border-style: dashed; }
+    .nbc-head { display: flex; align-items: center; gap: .4rem; padding: .2rem .5rem; background: var(--panel); border-bottom: 1px solid var(--edge); }
+    .nbc.markdown .nbc-head { border-bottom: none; }
+    .nbc-badge { font-size: .6rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); border: 1px solid var(--edge); border-radius: 5px; padding: .03rem .35rem; }
+    .nbc-btn { color: var(--accent); font-weight: 600; font-size: .72rem; background: transparent; border: 1px solid var(--edge); border-radius: 6px; padding: .08rem .45rem; cursor: pointer; }
+    .nbc-btn:hover { background: var(--grad); color: var(--accent-ink); border-color: transparent; }
+    .nbc .cell-out { padding: .2rem .7rem .5rem; } .nbc .cell-out:empty { display: none; }
+    .nbc .md-view { padding: .55rem .8rem; } .nbc .md-view > :first-child { margin-top: .2rem; }
+    .nb-add { display:flex; gap:.5rem; max-width:60rem; margin: .6rem auto; padding: 0 1rem; }
+    .nb-add button { background: var(--panel); color: var(--muted); border: 1px dashed var(--edge); padding: .35rem .9rem; border-radius: 8px; cursor:pointer; }
+
     body.is-edit .edit-only { display: inline-flex; }
+    .edit-only { display: none; }
     body.is-edit .view-only { display: none; }
 
     @media (max-width: 860px) {
-      body.is-edit main { flex-direction: column; }
-      body.is-edit #editor-pane, body.is-edit .right { width: auto; flex: none; }
-      body.is-edit #editor-pane { border-right: none; border-bottom: 1px solid var(--edge); }
-      body.is-edit html, body.is-edit body { height: auto; overflow: visible; }
-      body.is-edit #editor { flex: none; height: 55vh; min-height: 260px; }
-      body.is-edit .preview { height: auto; overflow: visible; }
+      #stage.classic { flex-direction: column; }
+      #stage.classic #editor-pane, #stage.classic .right { width: auto; flex: none; }
+      #stage.classic #editor-pane { border-right: none; border-bottom: 1px solid var(--edge); }
+      body.is-edit.has-classic, body.is-edit.has-classic html { }
+      #stage.classic #editor { height: 55vh; min-height: 260px; flex: none; }
+      #stage.classic .preview { height: auto; overflow: visible; }
+      html:has(#stage.classic), body:has(#stage.classic) { height: auto; overflow: visible; }
       header .tag { display: none; }
     }
   </style>
@@ -87,25 +79,19 @@
 <body data-v="__V__">
   <header>
     <span class="wordmark">numerical<b>.run</b></span>
-    <span class="tag">.nb.md · RunMat · in-browser</span>
+    <span class="tag" id="modetag">.nb.md · RunMat · in-browser</span>
     <span class="spacer"></span>
-
-    <!-- edit-mode controls -->
     <label class="tag edit-only" for="example">example</label>
     <select id="example" class="edit-only"></select>
     <button id="run-btn" class="edit-only">▶ Run<span class="kbd">⌘⏎</span></button>
     <button id="widgets-btn" class="ghost edit-only" title="Insert a widget">＋ Widgets</button>
     <button id="view-btn" class="ghost edit-only" title="View as an app">View ▸</button>
-
-    <!-- view-mode controls -->
     <button id="edit-btn" class="ghost view-only" title="Edit this document">✎ Edit</button>
-
     <button id="share-btn" class="ghost" title="Copy a link carrying this document">share</button>
-    <span id="status" class="tag">booting…</span>
   </header>
 
   <div id="palette" hidden>
-    <div class="palette-head"><strong>Widgets</strong><span class="hint" id="palette-target">→ new cell</span><button id="palette-close" class="ghost">✕</button></div>
+    <div class="palette-head"><strong>Widgets</strong><span class="hint" id="palette-target"></span><button id="palette-close" class="ghost">✕</button></div>
     <div class="palette-grid" id="palette-grid"></div>
     <div class="hint palette-note">Click to append the <code>sl_*</code> call to the document and rerun.</div>
   </div>
@@ -115,20 +101,11 @@
       <div class="panehead">editor · <span style="color:var(--accent)">.nb.md</span> — Run to render</div>
       <div id="editor"></div>
     </section>
+    <div id="cells"></div>
     <section class="pane right">
-      <div class="panehead" id="pv-tabs">
-        <div class="seg" id="pv-mode">
-          <button data-view="app" class="on">App</button>
-          <button data-view="nb">Notebook</button>
-        </div>
-        <span class="spacer" style="flex:1"></span><span>preview</span>
-      </div>
-      <div class="preview">
-        <div id="pv-app" class="pv on"><div class="tag" style="padding:2rem 1rem">loading the RunMat runtime (52&nbsp;MB, cached after first visit)…</div></div>
-        <div id="pv-nb" class="pv"></div>
-      </div>
-      <div class="statusbar"><span id="status2"></span><span class="spacer"></span><span id="dev-time"></span></div>
+      <div class="preview"><div id="pv-app"><div class="tag" style="padding:2rem 1rem">loading the RunMat runtime (52&nbsp;MB, cached after first visit)…</div></div></div>
     </section>
+    <div class="statusbar"><span id="status2"></span><span class="spacer"></span><span id="dev-time"></span></div>
   </main>
 
   <script type="module" src="./app.js?v=__V__"></script>

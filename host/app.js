@@ -1,27 +1,25 @@
-/* numerical.run — single-page app.
+/* numerical.run — single-page app (v0.2.0).
  *
- * One page, two states chosen by the URL:
- *   • VIEW  (default)  — the .nb.md rendered as an app (Streamlit-style),
- *                        code hidden, full width. Monaco is NOT loaded.
- *   • EDIT  (?edit)    — Monaco editor + live preview (App / Notebook tabs).
- *                        Monaco loads lazily the first time you enter edit.
+ * The document is one .nb.md; the EDITOR is chosen by a URL param, no button:
+ *   ?editor=notebook  (default) — the notebook IS the editor: editable cells
+ *                                 (Monaco per code cell) with outputs inline.
+ *   ?editor=classic              — one Monaco over the whole .nb.md + an App
+ *                                 preview beside it (no notebook view).
  *
- * The document comes from the URL, else a built-in default:
- *   #code=<base64>  |  ?code=<base64>  |  ?gist=<id | raw-url>  |  (default)
+ * Orthogonally, ?edit toggles authoring vs. the rendered App (View ▸ / ✎ Edit).
+ * A bare URL with no shared document opens straight into the editor; a shared
+ * document (#code=/?gist=) opens as the App unless ?edit is present.
  *
- * Toggling edit/view updates the URL in place (no reload). Assets are shared
- * with the deployed site; only the heavy wasm runtime + Monaco may live on a CDN
- * (window.NUMCFG, injected per environment).
+ * Document source: #code=<base64> | ?code= | ?gist=<id|raw-url> | built-in default.
  */
 
 const V = document.body.dataset.v || String(Date.now());
 const CFG = window.NUMCFG || {};
 const RUNTIME = CFG.runtime || './runtime';
 const FIGR = CFG.figrender || './runtime/figrender.mjs';
-const MONACO = CFG.monaco || './monaco';           // dir containing vs/
-
+const MONACO = CFG.monaco || './monaco';
 const q = (s) => document.querySelector(s);
-const status = (t) => { q('#status').textContent = t; const s2 = q('#status2'); if (s2) s2.textContent = t; };
+const status = (t) => { const s = q('#status2'); if (s) s.textContent = t; };
 const b64encode = (s) => btoa(String.fromCharCode(...new TextEncoder().encode(s)));
 const b64decode = (s) => new TextDecoder().decode(Uint8Array.from(atob(s), (c) => c.charCodeAt(0)));
 
@@ -29,7 +27,7 @@ const EXAMPLES = ['waves.nb.md', 'knn.nb.md', 'hello.nb.md'];
 const DEFAULT_DOC = `# numerical.run
 
 A \`.nb.md\` notebook that runs entirely in your browser on the RunMat WASM
-kernel. This is the **app** view — hit *✎ Edit* to open the notebook editor.
+kernel. Edit the cells; hit **Run** (⌘/Ctrl+Enter). *View ▸* renders it as an app.
 
 \`\`\`matlab {jupyter.code-cell}
 f = sl_slider('frequency', 1, 8, 3, 0.5);
@@ -43,123 +41,147 @@ sl_metric('frequency', f, '%g');
 const { createKernel } = await import(`./kernel.js?v=${V}`);
 const { parseNbMd, serializeNbMd, newCell } = await import(`./nbmd.js?v=${V}`);
 const { mdToHtml } = await import(`./md.js?v=${V}`);
-
 const kernel = await createKernel({
-  statusEl: q('#status'),
-  runtimeUrl: RUNTIME,
-  figrenderUrl: `${FIGR}?v=${V}`,
-  renderUrl: `./render.js?v=${V}`,
-  library: await (await fetch(`./lib.m?v=${V}`)).text(),
+  statusEl: q('#status2'), runtimeUrl: RUNTIME, figrenderUrl: `${FIGR}?v=${V}`,
+  renderUrl: `./render.js?v=${V}`, library: await (await fetch(`./lib.m?v=${V}`)).text(),
 });
 
 // ---------------------------------------------------------------- state
+let editorMode = 'notebook';          // 'notebook' | 'classic'  (URL: ?editor=)
+let editing = false;                  // authoring vs. App view  (URL: ?edit)
 let doc = { frontmatter: null, cells: [] };
-let source = '';                 // current document text (source of truth)
+let source = '';
 let lastByCell = new Map();
-let pvMode = 'app';              // preview tab in edit mode
-let editing = false;
-let editor = null, monacoReady = false;
+let blobEditor = null, monacoReady = false;
+const cellEditors = new Map();
 const counters = {};
 
 // ---------------------------------------------------------------- run + render
-function runFrom(text) {
-  source = text;
-  doc = parseNbMd(text);
-  status('running…');
-  const t0 = performance.now();
-  kernel.runAll(doc.cells).then((byCell) => {
-    lastByCell = byCell;
-    const el = q('#dev-time'); if (el) el.textContent = `${Math.round(performance.now() - t0)} ms`;
-    status('ran');
-    render();
-  });
+function currentSource() { return editing && editorMode === 'notebook' ? serializeNbMd(doc) : (blobEditor ? blobEditor.getValue() : source); }
+function runAll() {
+  status('running…'); const t0 = performance.now();
+  kernel.runAll(doc.cells).then((byCell) => { lastByCell = byCell; const e = q('#dev-time'); if (e) e.textContent = `${Math.round(performance.now() - t0)} ms`; status('ran'); render(); });
 }
-function rerunCurrent() { runFrom(editing && editor ? editor.getValue() : source); }
-
-function appSetState(label, value, opts = {}) {
-  kernel.markWidget(label, value, opts.once);
-  kernel.runAll(doc.cells).then((byCell) => { lastByCell = byCell; render(); });
-}
-function cellSetState(cell) {
-  return (label, value, opts = {}) => {
-    kernel.markWidget(label, value, opts.once);
-    kernel.runCell(cell).then((els) => { lastByCell.set(doc.cells.indexOf(cell), els); render(); });
-  };
-}
-
-function render() { (editing && pvMode === 'nb') ? renderNb() : renderApp(); }
+function loadText(text) { source = text; doc = parseNbMd(text); syncEditors(); runAll(); }
+function render() { (editing && editorMode === 'notebook') ? renderCellsOutputs() : renderApp(); }
 
 function renderApp() {
   const elements = [];
-  doc.cells.forEach((cell, i) => {
-    if (cell.kind === 'markdown') elements.push({ type: 'text', html: mdToHtml(cell.source) });
-    else elements.push(...(lastByCell.get(i) ?? []));
-  });
+  doc.cells.forEach((cell, i) => { if (cell.kind === 'markdown') elements.push({ type: 'text', html: mdToHtml(cell.source) }); else elements.push(...(lastByCell.get(i) ?? [])); });
   kernel.renderElements(q('#pv-app'), elements, appSetState);
 }
-function renderNb() {
-  const root = q('#pv-nb');
-  root.innerHTML = '';
-  doc.cells.forEach((cell, i) => {
-    if (cell.kind === 'markdown') {
-      const d = document.createElement('div'); d.className = 'pv-cell md'; d.innerHTML = mdToHtml(cell.source); root.appendChild(d); return;
-    }
-    const box = document.createElement('div'); box.className = 'pv-cell pv-code';
-    const pre = document.createElement('pre'); pre.textContent = cell.source; box.appendChild(pre);
-    const out = document.createElement('div'); out.className = 'pv-out';
-    const els = lastByCell.get(i) ?? [];
-    if (els.length) kernel.renderElements(out, els, cellSetState(cell));
-    box.appendChild(out); root.appendChild(box);
-  });
-}
+function appSetState(label, value, opts = {}) { kernel.markWidget(label, value, opts.once); kernel.runAll(doc.cells).then((byCell) => { lastByCell = byCell; render(); }); }
+function cellSetState(cell) { return (label, value, opts = {}) => { kernel.markWidget(label, value, opts.once); kernel.runCell(cell).then((els) => { lastByCell.set(doc.cells.indexOf(cell), els); updateCellOut(cell); }); }; }
 
-// ---------------------------------------------------------------- Monaco (lazy)
-function loadScript(src) {
-  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error(`load ${src}`)); document.head.appendChild(s); });
-}
+// ---------------------------------------------------------------- Monaco
+function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error(src)); document.head.appendChild(s); }); }
 async function ensureMonaco() {
   if (monacoReady) return;
-  // A blob worker has no page origin, so importScripts needs an ABSOLUTE URL —
-  // make the Monaco base absolute for the worker (CDN URLs already are).
-  const MON_ABS = /^https?:/.test(MONACO) ? MONACO : location.origin + MONACO;
-  await loadScript(`${MON_ABS}/vs/loader.js`);
-  self.MonacoEnvironment = {
-    getWorkerUrl() {
-      return URL.createObjectURL(new Blob([
-        `self.MonacoEnvironment={baseUrl:'${MON_ABS}/'};importScripts('${MON_ABS}/vs/base/worker/workerMain.js');`
-      ], { type: 'text/javascript' }));
-    }
-  };
-  require.config({ paths: { vs: `${MON_ABS}/vs` } });
+  const BASE = /^https?:/.test(MONACO) ? MONACO : new URL(MONACO, location.href).href.replace(/\/$/, '');
+  await loadScript(`${BASE}/vs/loader.js`);
+  self.MonacoEnvironment = { getWorkerUrl() { return URL.createObjectURL(new Blob([`self.MonacoEnvironment={baseUrl:'${BASE}/'};importScripts('${BASE}/vs/base/worker/workerMain.js');`], { type: 'text/javascript' })); } };
+  require.config({ paths: { vs: `${BASE}/vs` } });
   await new Promise((res) => require(['vs/editor/editor.main'], res));
-  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
-  editor = monaco.editor.create(q('#editor'), {
-    value: source, language: 'markdown', theme: dark ? 'vs-dark' : 'vs',
-    fontSize: 13, minimap: { enabled: false }, automaticLayout: true, scrollBeyondLastLine: false,
-    wordWrap: 'on', tabSize: 4, fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
-  });
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => runFrom(editor.getValue()));
-  // Recompute layout once the container has settled (mobile especially) and on
-  // any resize/orientation change, so the gutter/cursor stay anchored.
-  requestAnimationFrame(() => editor.layout());
-  addEventListener('resize', () => editor && editor.layout());
   monacoReady = true;
 }
+const theme = () => (matchMedia('(prefers-color-scheme: dark)').matches ? 'vs-dark' : 'vs');
+const CELL_OPTS = () => ({
+  language: 'markdown', theme: theme(), fontSize: 13, lineHeight: 19, minimap: { enabled: false },
+  lineNumbers: 'off', wordWrap: 'on', folding: false, tabSize: 4, automaticLayout: true, scrollBeyondLastLine: false,
+  overviewRulerLanes: 0, hideCursorInOverviewRuler: true, renderLineHighlight: 'none', contextmenu: false,
+  scrollbar: { vertical: 'hidden', horizontal: 'hidden', handleMouseWheel: false, verticalScrollbarSize: 0, horizontalScrollbarSize: 0 },
+  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+});
 
-// ---------------------------------------------------------------- mode
+// ---------------------------------------------------------------- classic (Monaco blob)
+async function ensureBlob() {
+  await ensureMonaco();
+  if (!blobEditor) {
+    blobEditor = monaco.editor.create(q('#editor'), {
+      value: source, language: 'markdown', theme: theme(), fontSize: 13, minimap: { enabled: false },
+      automaticLayout: true, scrollBeyondLastLine: false, wordWrap: 'on', tabSize: 4,
+      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+    });
+    blobEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => loadText(blobEditor.getValue()));
+  } else { blobEditor.setValue(source); }
+  requestAnimationFrame(() => blobEditor.layout());
+}
+
+// ---------------------------------------------------------------- notebook (cells)
+function autoHeight(ed, el) { el.style.height = (ed.getContentHeight() + 2) + 'px'; ed.layout(); }
+function renderCells() {
+  const root = q('#cells'); root.innerHTML = ''; cellEditors.clear();
+  doc.cells.forEach((cell) => root.appendChild(cellNode(cell)));
+  const add = document.createElement('div'); add.className = 'nb-add';
+  const c = document.createElement('button'); c.textContent = '+ Code'; c.onclick = () => { doc.cells.push(newCell('code', '')); renderCells(); };
+  const m = document.createElement('button'); m.textContent = '+ Text'; m.onclick = () => { doc.cells.push(newCell('markdown', '_text_')); renderCells(); };
+  add.append(c, m); root.appendChild(add);
+}
+function cellNode(cell) {
+  const box = document.createElement('div'); box.className = `nbc ${cell.kind}`;
+  const head = document.createElement('div'); head.className = 'nbc-head';
+  const badge = document.createElement('span'); badge.className = 'nbc-badge'; badge.textContent = cell.kind === 'code' ? 'code' : 'md';
+  const sp = document.createElement('span'); sp.style.flex = '1';
+  const del = document.createElement('button'); del.className = 'nbc-btn'; del.textContent = '✕'; del.title = 'delete'; del.onclick = () => { doc.cells = doc.cells.filter((c) => c !== cell); renderCells(); };
+  if (cell.kind === 'code') { const r = document.createElement('button'); r.className = 'nbc-btn'; r.textContent = '▸ Run'; r.onclick = () => runCellById(cell); head.append(r); }
+  head.append(badge, sp, del); box.appendChild(head);
+
+  if (cell.kind === 'code') {
+    const edEl = document.createElement('div'); edEl.className = 'cell-ed'; box.appendChild(edEl);
+    const ed = monaco.editor.create(edEl, { value: cell.source, ...CELL_OPTS() });
+    cellEditors.set(cell.id, ed);
+    ed.onDidChangeModelContent(() => { cell.source = ed.getValue(); });
+    ed.onDidContentSizeChange(() => autoHeight(ed, edEl));
+    ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => runCellById(cell));
+    requestAnimationFrame(() => autoHeight(ed, edEl));
+    const out = document.createElement('div'); out.className = 'cell-out'; out.dataset.cellOut = cell.id; box.appendChild(out);
+    const els = lastByCell.get(doc.cells.indexOf(cell)) ?? []; if (els.length) kernel.renderElements(out, els, cellSetState(cell));
+  } else {
+    const view = document.createElement('div'); view.className = 'md-view';
+    view.innerHTML = mdToHtml(cell.source) || '<span class="nbc-badge">empty text cell — tap ✎ Edit</span>';
+    const enterEdit = () => {
+      if (box.querySelector('.cell-ed')) return;
+      const edEl = document.createElement('div'); edEl.className = 'cell-ed'; box.replaceChild(edEl, view);
+      const ed = monaco.editor.create(edEl, { value: cell.source, ...CELL_OPTS() });
+      requestAnimationFrame(() => { autoHeight(ed, edEl); ed.focus(); });
+      ed.onDidChangeModelContent(() => { cell.source = ed.getValue(); });
+      ed.onDidContentSizeChange(() => autoHeight(ed, edEl));
+      ed.onDidBlurEditorWidget(() => renderCells());
+    };
+    view.addEventListener('dblclick', enterEdit);
+    const editBtn = document.createElement('button'); editBtn.className = 'nbc-btn'; editBtn.textContent = '✎ Edit'; editBtn.onclick = enterEdit;
+    head.insertBefore(editBtn, head.firstChild);
+    box.appendChild(view);
+  }
+  return box;
+}
+function runCellById(cell) { status('running cell…'); kernel.runCell(cell).then((els) => { lastByCell.set(doc.cells.indexOf(cell), els); updateCellOut(cell); status('ran cell'); }); }
+function updateCellOut(cell) { const out = document.querySelector(`[data-cell-out="${cell.id}"]`); if (!out) return; out.innerHTML = ''; const els = lastByCell.get(doc.cells.indexOf(cell)) ?? []; if (els.length) kernel.renderElements(out, els, cellSetState(cell)); }
+function renderCellsOutputs() { doc.cells.forEach((cell) => { if (cell.kind === 'code') updateCellOut(cell); }); }
+
+// ---------------------------------------------------------------- mode / layout
+function setStage() {
+  const stage = q('#stage');
+  stage.className = !editing ? 'view' : editorMode;      // 'view' | 'classic' | 'notebook'
+  document.body.classList.toggle('is-edit', editing);
+  q('#modetag').textContent = !editing ? '.nb.md · RunMat · in-browser'
+    : (editorMode === 'notebook' ? 'notebook editor' : 'classic editor');
+}
+async function syncEditors() {
+  if (editing && editorMode === 'classic') await ensureBlob();
+  if (editing && editorMode === 'notebook') { await ensureMonaco(); renderCells(); }
+}
 function updateURL() {
-  const params = new URLSearchParams(location.search);
-  if (editing) params.set('edit', '1'); else params.delete('edit');
-  const qs = params.toString();
+  const p = new URLSearchParams(location.search);
+  if (editing) p.set('edit', '1'); else p.delete('edit');
+  if (editorMode === 'classic') p.set('editor', 'classic'); else p.delete('editor');
+  const qs = p.toString();
   history.replaceState(null, '', location.pathname + (qs ? `?${qs}` : '') + location.hash);
 }
 async function setEditing(on) {
-  editing = on;
-  document.body.classList.toggle('is-edit', on);
-  q('#stage').className = on ? 'edit' : 'view';
-  if (on) { await ensureMonaco(); editor.setValue(source); requestAnimationFrame(() => editor.layout()); }
-  else if (editor) { source = editor.getValue(); }   // keep edits when leaving
-  updateURL();
+  if (!on && editing) source = currentSource();     // keep edits when leaving
+  editing = on; setStage(); updateURL();
+  await syncEditors();
   render();
 }
 
@@ -167,10 +189,8 @@ async function setEditing(on) {
 async function fetchGist(ref) {
   if (/^https?:\/\//.test(ref)) { const r = await fetch(ref); if (!r.ok) throw new Error(`gist url HTTP ${r.status}`); return await r.text(); }
   const id = ref.split('/').pop();
-  const r = await fetch(`https://api.github.com/gists/${id}`);
-  if (!r.ok) throw new Error(`gist API HTTP ${r.status}`);
-  const files = Object.values((await r.json()).files || {});
-  if (!files.length) throw new Error('gist has no files');
+  const r = await fetch(`https://api.github.com/gists/${id}`); if (!r.ok) throw new Error(`gist API HTTP ${r.status}`);
+  const files = Object.values((await r.json()).files || {}); if (!files.length) throw new Error('gist has no files');
   const pick = files.find((f) => /\.nb\.md$/.test(f.filename)) || files.find((f) => /\.md$/.test(f.filename)) || files.find((f) => /\.m$/.test(f.filename)) || files[0];
   if (pick.truncated && pick.raw_url) return await (await fetch(pick.raw_url)).text();
   return pick.content;
@@ -191,50 +211,27 @@ const WIDGETS = [
 ];
 function uniq(kind) { counters[kind] = (counters[kind] || 0) + 1; return { name: `${kind}${counters[kind]}`, label: `${kind} ${counters[kind]}` }; }
 function insertWidget(w) {
-  const { name, label } = uniq(w.kind);
-  const snippet = w.snip(name, label);
-  // append to the last code cell, or a new one, then reflect in the editor
-  let d = parseNbMd(editing && editor ? editor.getValue() : source);
+  const { name, label } = uniq(w.kind); const snippet = w.snip(name, label);
+  const d = parseNbMd(currentSource());
   let cell = [...d.cells].reverse().find((c) => c.kind === 'code');
   if (!cell) { cell = newCell('code', ''); d.cells.push(cell); }
   cell.source = cell.source.trim() ? `${cell.source.replace(/\s+$/, '')}\n${snippet}` : snippet;
-  const text = serializeNbMd(d);
-  if (editing && editor) editor.setValue(text);
-  runFrom(text);
+  loadText(serializeNbMd(d));
 }
-function buildPalette() {
-  const grid = q('#palette-grid');
-  for (const w of WIDGETS) { const b = document.createElement('button'); b.className = 'palette-item'; b.textContent = w.label; b.addEventListener('click', () => insertWidget(w)); grid.appendChild(b); }
-}
+function buildPalette() { const g = q('#palette-grid'); for (const w of WIDGETS) { const b = document.createElement('button'); b.className = 'palette-item'; b.textContent = w.label; b.onclick = () => insertWidget(w); g.appendChild(b); } }
 
 // ---------------------------------------------------------------- shell wiring
-function shareLink() { return `${location.origin}${location.pathname}#code=${b64encode(editing && editor ? editor.getValue() : source)}`; }
-
+function shareLink() { return `${location.origin}${location.pathname}#code=${b64encode(currentSource())}`; }
 function wire() {
   const sel = q('#example');
   for (const e of EXAMPLES) { const o = document.createElement('option'); o.value = e; o.textContent = e.replace('.nb.md', ''); sel.appendChild(o); }
-  sel.addEventListener('change', async () => {
-    const text = await (await fetch(`./examples/${sel.value}?v=${V}`)).text();
-    if (editing && editor) editor.setValue(text);
-    runFrom(text);
-  });
-  q('#pv-mode').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
-    pvMode = b.dataset.view;
-    q('#pv-mode').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
-    q('#pv-app').classList.toggle('on', pvMode === 'app');
-    q('#pv-nb').classList.toggle('on', pvMode === 'nb');
-    render();
-  }));
-  q('#run-btn').addEventListener('click', () => runFrom(editor ? editor.getValue() : source));
+  sel.addEventListener('change', async () => { loadText(await (await fetch(`./examples/${sel.value}?v=${V}`)).text()); });
+  q('#run-btn').addEventListener('click', () => loadText(currentSource()));
   q('#edit-btn').addEventListener('click', () => setEditing(true));
   q('#view-btn').addEventListener('click', () => setEditing(false));
   q('#widgets-btn').addEventListener('click', () => { const p = q('#palette'); p.hidden = !p.hidden; });
   q('#palette-close').addEventListener('click', () => { q('#palette').hidden = true; });
-  q('#share-btn').addEventListener('click', async () => {
-    const url = shareLink();
-    try { await navigator.clipboard.writeText(url); status(`link copied (${url.length} chars)`); }
-    catch { prompt('share link:', url); }
-  });
+  q('#share-btn').addEventListener('click', async () => { const url = shareLink(); try { await navigator.clipboard.writeText(url); status(`link copied (${url.length} chars)`); } catch { prompt('share link:', url); } });
   buildPalette();
 }
 
@@ -243,18 +240,24 @@ async function boot() {
   wire();
   const hash = new URLSearchParams(location.hash.slice(1));
   const params = new URLSearchParams(location.search);
+  editorMode = (hash.get('editor') || params.get('editor')) === 'classic' ? 'classic' : 'notebook';
   const wantEdit = hash.has('edit') || params.has('edit');
+  const code = hash.get('code') || params.get('code');
+  const gist = hash.get('gist') || params.get('gist');
   try {
-    const code = hash.get('code') || params.get('code');
-    const gist = hash.get('gist') || params.get('gist');
     if (code) source = b64decode(code);
     else if (gist) source = await fetchGist(gist);
     else source = DEFAULT_DOC;
   } catch (e) { source = DEFAULT_DOC; status(`bad source: ${e.message}`); }
+  const hasDoc = !!(code || gist);
 
-  runFrom(source);
-  if (wantEdit) await setEditing(true);
+  doc = parseNbMd(source);
+  // a bare URL (authoring a new doc) opens in the editor; a shared doc opens as
+  // the App unless ?edit is present.
+  editing = wantEdit || !hasDoc;
+  setStage(); updateURL();
+  await syncEditors();
+  runAll();
 }
-
 await boot();
-window.__numerical = { get source() { return editing && editor ? editor.getValue() : source; }, setEditing };
+window.__numerical = { get source() { return currentSource(); }, setEditing };
