@@ -54,6 +54,9 @@ let source = '';
 let lastByCell = new Map();
 let blobEditor = null, monacoReady = false;
 const cellEditors = new Map();
+const mdEditing = new Set();          // markdown cell ids currently open in an editor
+let pendingFocus = null;              // code cell id to focus after the next render
+let rendering = false;                // guard: ignore blur events fired during a re-render
 const counters = {};
 
 // ---------------------------------------------------------------- run + render
@@ -109,13 +112,41 @@ async function ensureBlob() {
 
 // ---------------------------------------------------------------- notebook (cells)
 function autoHeight(ed, el) { el.style.height = (ed.getContentHeight() + 2) + 'px'; ed.layout(); }
+
+// Insert a cell at any position, then bring it into edit focus.
+function insertAt(index, kind) {
+  const cell = newCell(kind, '');
+  doc.cells.splice(index, 0, cell);
+  if (kind === 'markdown') mdEditing.add(cell.id); else pendingFocus = cell.id;
+  renderCells();
+}
+// A gap control: a subtle "+" that expands to Code/Text and inserts at `index`.
+function insertControl(index) {
+  const wrap = document.createElement('div'); wrap.className = 'nb-ins';
+  const plus = document.createElement('button'); plus.className = 'plus'; plus.textContent = '+'; plus.title = 'Insert a cell here';
+  plus.onclick = () => {
+    plus.remove();
+    const choice = document.createElement('div'); choice.className = 'choice';
+    const c = document.createElement('button'); c.textContent = '＋ Code'; c.onclick = () => insertAt(index, 'code');
+    const t = document.createElement('button'); t.textContent = '＋ Text'; t.onclick = () => insertAt(index, 'markdown');
+    choice.append(c, t); wrap.appendChild(choice);
+    setTimeout(() => {
+      const off = (e) => { if (!wrap.contains(e.target)) { document.removeEventListener('click', off); wrap.replaceChildren(plus); } };
+      document.addEventListener('click', off);
+    }, 0);
+  };
+  wrap.appendChild(plus);
+  return wrap;
+}
 function renderCells() {
-  const root = q('#cells'); root.innerHTML = ''; cellEditors.clear();
-  doc.cells.forEach((cell) => root.appendChild(cellNode(cell)));
-  const add = document.createElement('div'); add.className = 'nb-add';
-  const c = document.createElement('button'); c.textContent = '+ Code'; c.onclick = () => { doc.cells.push(newCell('code', '')); renderCells(); };
-  const m = document.createElement('button'); m.textContent = '+ Text'; m.onclick = () => { doc.cells.push(newCell('markdown', '_text_')); renderCells(); };
-  add.append(c, m); root.appendChild(add);
+  rendering = true;
+  const root = q('#cells');
+  cellEditors.forEach((ed) => { try { ed.dispose(); } catch {} });
+  cellEditors.clear(); root.innerHTML = '';
+  root.appendChild(insertControl(0));
+  doc.cells.forEach((cell, i) => { root.appendChild(cellNode(cell)); root.appendChild(insertControl(i + 1)); });
+  rendering = false;
+  if (pendingFocus) { cellEditors.get(pendingFocus)?.focus(); pendingFocus = null; }
 }
 function cellNode(cell) {
   const box = document.createElement('div'); box.className = `nbc ${cell.kind}`;
@@ -136,18 +167,22 @@ function cellNode(cell) {
     requestAnimationFrame(() => autoHeight(ed, edEl));
     const out = document.createElement('div'); out.className = 'cell-out'; out.dataset.cellOut = cell.id; box.appendChild(out);
     const els = lastByCell.get(doc.cells.indexOf(cell)) ?? []; if (els.length) kernel.renderElements(out, els, cellSetState(cell));
+  } else if (mdEditing.has(cell.id)) {
+    // text cell open in an editor (freshly inserted, or after tapping ✎ Edit)
+    const doneBtn = document.createElement('button'); doneBtn.className = 'nbc-btn'; doneBtn.textContent = '✓ Done';
+    doneBtn.onclick = () => { mdEditing.delete(cell.id); renderCells(); };
+    head.insertBefore(doneBtn, head.firstChild);
+    const edEl = document.createElement('div'); edEl.className = 'cell-ed'; box.appendChild(edEl);
+    const ed = monaco.editor.create(edEl, { value: cell.source, ...CELL_OPTS() });
+    cellEditors.set(cell.id, ed);
+    requestAnimationFrame(() => { autoHeight(ed, edEl); ed.focus(); });
+    ed.onDidChangeModelContent(() => { cell.source = ed.getValue(); });
+    ed.onDidContentSizeChange(() => autoHeight(ed, edEl));
+    ed.onDidBlurEditorWidget(() => { if (rendering) return; if (mdEditing.has(cell.id)) { mdEditing.delete(cell.id); renderCells(); } });
   } else {
     const view = document.createElement('div'); view.className = 'md-view';
     view.innerHTML = mdToHtml(cell.source) || '<span class="nbc-badge">empty text cell — tap ✎ Edit</span>';
-    const enterEdit = () => {
-      if (box.querySelector('.cell-ed')) return;
-      const edEl = document.createElement('div'); edEl.className = 'cell-ed'; box.replaceChild(edEl, view);
-      const ed = monaco.editor.create(edEl, { value: cell.source, ...CELL_OPTS() });
-      requestAnimationFrame(() => { autoHeight(ed, edEl); ed.focus(); });
-      ed.onDidChangeModelContent(() => { cell.source = ed.getValue(); });
-      ed.onDidContentSizeChange(() => autoHeight(ed, edEl));
-      ed.onDidBlurEditorWidget(() => renderCells());
-    };
+    const enterEdit = () => { mdEditing.add(cell.id); renderCells(); };
     view.addEventListener('dblclick', enterEdit);
     const editBtn = document.createElement('button'); editBtn.className = 'nbc-btn'; editBtn.textContent = '✎ Edit'; editBtn.onclick = enterEdit;
     head.insertBefore(editBtn, head.firstChild);
