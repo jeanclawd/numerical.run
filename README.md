@@ -5,10 +5,14 @@ for using — running on a single [RunMat](https://github.com/dystr/runmat)
 WebAssembly kernel that speaks the Jupyter protocol. Edit as a notebook, ship
 as an app, from the same file and the same live session.
 
-The execution model is Streamlit's, not a reactive notebook's: **every change
-reruns the whole document, top to bottom**. One loop, no dependency graph, no
-hidden per-cell state — predictable and simple, the way
-[`streamlab`](https://github.com/jeanclawd/streamlab) already works.
+Two execution models, one per mode:
+
+- **Notebook mode** — stateful, Jupyter-style. Each cell has its own *Run*
+  (and Ctrl/⌘+Enter), executes against the persistent workspace without
+  resetting, and updates only its own output. Variables carry across cells.
+- **App mode** — Streamlit-style. Every interaction resets the session and
+  reruns the whole document top-to-bottom, so the page always reflects a clean
+  run — the way [`streamlab`](https://github.com/jeanclawd/streamlab) works.
 
 Widgets are plain MATLAB function calls from
 [`streamlab`](https://github.com/jeanclawd/streamlab)'s `sl_*` library — no new
@@ -20,11 +24,37 @@ so any Jupyter-aware tool can read it and it stays one-hunk-per-cell in git.
 A **WYSIWYG editor** (the *＋ Widgets* panel) writes the same `sl_*` calls a
 developer would type by hand into the active code cell, then reruns.
 
-See [`VISION.md`](VISION.md) for the design writeup: the single-loop execution
-model, the two views over one kernel, the `.nb.md` format and how it maps to
-JEP #103, the WYSIWYG layer, what's reused verbatim from `streamlab` vs.
-genuinely new, the IP posture, and the inspirations (Streamlit, Jupyter,
-Jupytext/MyST-NB/Quarto, marimo, Pluto.jl).
+See [`VISION.md`](VISION.md) for the design writeup: the execution model, the
+two views over one kernel, the `.nb.md` format and how it maps to JEP #103, the
+WYSIWYG layer, what's reused verbatim from `streamlab` vs. genuinely new, the IP
+posture, and the inspirations (Streamlit, Jupyter, Jupytext/MyST-NB/Quarto,
+marimo, Pluto.jl).
+
+## Screenshots
+
+**Notebook mode** — editable code + markdown cells, per-cell output, stateful
+execution:
+
+![Notebook mode — cells with inline widgets, a live figure and metrics](docs/notebook.png)
+
+**App mode** — the same `.nb.md` as a Streamlit-style app: code hidden, widgets
+and prose in place:
+
+![App mode — the same document rendered as an app](docs/app.png)
+
+**Dev environment** (`/dev`) — a Monaco editor with a live preview of both
+modes, inspired by the zoetrope playground; responsive down to a phone:
+
+![Dev environment — Monaco editor on the left, live preview on the right](docs/dev.png)
+
+## Where it runs
+
+- **`/`** — the notebook + app shell (editable cells, mode toggle, WYSIWYG).
+- **`/dev`** — the Monaco dev environment above.
+- **`/app`** — a headless runner that renders a `.nb.md` carried in the URL:
+  `#code=<base64>` (or `?code=`), or `?gist=<id|raw-url>` (picks the first
+  `.nb.md`/`.md`/`.m` file). "Open as app" in `/dev` generates the link; each
+  `/app` page links back to `/dev` for editing.
 
 ## Running it
 
@@ -34,14 +64,17 @@ Everything runs client-side — one RunMat WASM kernel, no server.
 host/            the app
   index.html     shell (Notebook | App toggle, ＋ Widgets, Run all, share)
   app.js         two views + WYSIWYG over one document and one kernel
-  kernel.js      RunMat WASM session + whole-document rerun, per-cell output
+  dev.html/.js   the /dev Monaco dev environment (live preview of both modes)
+  app.html       the /app headless runner shell
+  player.js      /app: load a .nb.md from the URL (base64 / gist) and render
+  kernel.js      RunMat WASM session; runCell (stateful) + runAll (full rerun)
   nbmd.js        .nb.md parse / serialize (JEP #103 subset)
   md.js          tiny Markdown → HTML for prose cells
   render.js      widget renderer            (reused from streamlab)
   lib.m          sl_* widget library        (reused from streamlab)
   figrender.mjs  figure SVG renderer        (reused from streamlab)
   examples/*.nb.md
-deploy.sh        assemble host/ + RunMat runtime → the static site
+deploy.sh        assemble host/ + RunMat runtime + Monaco → the static site
 ```
 
 `./deploy.sh` builds the static site (pulling the 52 MB RunMat runtime from an
@@ -52,4 +85,5 @@ copies a link that carries the whole `.nb.md` inside its `#nb=` fragment.
 Reused verbatim from [`streamlab`](https://github.com/jeanclawd/streamlab): the
 RunMat WASM runtime, the `sl_*` widget library, the `%%SL%%` marker protocol,
 the figure renderer, and the widget→DOM renderer. New here: the `.nb.md` format,
-the notebook view, the per-cell-attributed rerun, and the WYSIWYG panel.
+the notebook view, the stateful-cell vs. full-rerun kernel, the WYSIWYG panel,
+and the `/dev` (Monaco) and `/app` (URL-carried) surfaces.
