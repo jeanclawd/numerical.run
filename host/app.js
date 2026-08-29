@@ -113,30 +113,50 @@ async function ensureBlob() {
 // ---------------------------------------------------------------- notebook (cells)
 function autoHeight(ed, el) { el.style.height = (ed.getContentHeight() + 2) + 'px'; ed.layout(); }
 
-// Insert a cell at any position, then bring it into edit focus.
-function insertAt(index, kind) {
-  const cell = newCell(kind, '');
+// Insert a cell at any position. Empty code/text cells open focused; a prefilled
+// (widget) cell does not steal focus.
+function insertAt(index, kind, src = '') {
+  const cell = newCell(kind, src);
   doc.cells.splice(index, 0, cell);
-  if (kind === 'markdown') mdEditing.add(cell.id); else pendingFocus = cell.id;
+  if (kind === 'markdown') mdEditing.add(cell.id);
+  else if (!src) pendingFocus = cell.id;
   renderCells();
+  return cell;
 }
-// A gap control: a subtle "+" that expands to Code/Text and inserts at `index`.
+function insertWidgetAt(index, w) {
+  const { name, label } = uniq(w.kind);
+  const cell = insertAt(index, 'code', w.snip(name, label));
+  runCellById(cell);                       // render the widget immediately
+}
+// A gap control: a subtle "+" that expands to Code / Text / Widget▸ and inserts
+// at `index`. Widgets land here as their own cell — same gesture as adding a cell.
 function insertControl(index) {
   const wrap = document.createElement('div'); wrap.className = 'nb-ins';
-  const plus = document.createElement('button'); plus.className = 'plus'; plus.textContent = '+'; plus.title = 'Insert a cell here';
+  const plus = document.createElement('button'); plus.className = 'plus'; plus.textContent = '+'; plus.title = 'Insert here';
+  const mk = (cls, label, fn) => { const b = document.createElement('button'); if (cls) b.className = cls; b.textContent = label; b.onclick = fn; return b; };
   plus.onclick = () => {
     plus.remove();
     const choice = document.createElement('div'); choice.className = 'choice';
-    const c = document.createElement('button'); c.textContent = '＋ Code'; c.onclick = () => insertAt(index, 'code');
-    const t = document.createElement('button'); t.textContent = '＋ Text'; t.onclick = () => insertAt(index, 'markdown');
-    choice.append(c, t); wrap.appendChild(choice);
+    choice.append(
+      mk(null, '＋ Code', () => insertAt(index, 'code')),
+      mk(null, '＋ Text', () => insertAt(index, 'markdown')),
+      mk(null, '＋ Widget ▸', () => { choice.remove(); wrap.appendChild(widgetMenu(index)); }),
+    );
+    wrap.appendChild(choice);
     setTimeout(() => {
-      const off = (e) => { if (!wrap.contains(e.target)) { document.removeEventListener('click', off); wrap.replaceChildren(plus); } };
+      // isConnected guard: a button removed mid-handling (Code/Text/Widget) must
+      // not be treated as an "outside" click and collapse the freshly-opened menu.
+      const off = (e) => { if (e.target.isConnected && !wrap.contains(e.target)) { document.removeEventListener('click', off); wrap.replaceChildren(plus); } };
       document.addEventListener('click', off);
     }, 0);
   };
   wrap.appendChild(plus);
   return wrap;
+}
+function widgetMenu(index) {
+  const m = document.createElement('div'); m.className = 'wchoice';
+  for (const w of WIDGETS) { const b = document.createElement('button'); b.textContent = w.label; b.onclick = () => insertWidgetAt(index, w); m.appendChild(b); }
+  return m;
 }
 function renderCells() {
   rendering = true;
@@ -249,15 +269,7 @@ const WIDGETS = [
   { kind: 'text', bind: false, label: 'Text', snip: (n, l) => `sl_text('${l}');` },
 ];
 function uniq(kind) { counters[kind] = (counters[kind] || 0) + 1; return { name: `${kind}${counters[kind]}`, label: `${kind} ${counters[kind]}` }; }
-function insertWidget(w) {
-  const { name, label } = uniq(w.kind); const snippet = w.snip(name, label);
-  const d = parseNbMd(currentSource());
-  let cell = [...d.cells].reverse().find((c) => c.kind === 'code');
-  if (!cell) { cell = newCell('code', ''); d.cells.push(cell); }
-  cell.source = cell.source.trim() ? `${cell.source.replace(/\s+$/, '')}\n${snippet}` : snippet;
-  loadText(serializeNbMd(d));
-}
-function buildPalette() { const g = q('#palette-grid'); for (const w of WIDGETS) { const b = document.createElement('button'); b.className = 'palette-item'; b.textContent = w.label; b.onclick = () => insertWidget(w); g.appendChild(b); } }
+// (widgets are inserted via the between-cell "+" — see insertControl/widgetMenu)
 
 // ---------------------------------------------------------------- share flourish
 const FX_COLORS = ['#3b82f6', '#6366f1', '#8b5cf6', '#a855f7'];
@@ -299,8 +311,6 @@ function wire() {
   q('#run-btn').addEventListener('click', () => loadText(currentSource()));
   q('#nav-edit').addEventListener('click', () => setEditing(true));
   q('#nav-app').addEventListener('click', () => setEditing(false));
-  q('#widgets-btn').addEventListener('click', () => { const p = q('#palette'); p.hidden = !p.hidden; });
-  q('#palette-close').addEventListener('click', () => { q('#palette').hidden = true; });
   q('#share-btn').addEventListener('click', async () => {
     const btn = q('#share-btn');          // capture before await (currentTarget nulls out)
     const url = shareLink();
@@ -311,7 +321,6 @@ function wire() {
     status(copied ? `link copied (${url.length} chars)` : 'link ready');
     if (!copied) prompt('share link:', url);
   });
-  buildPalette();
 }
 
 // ---------------------------------------------------------------- boot

@@ -95,6 +95,10 @@
     .nb-ins .choice { position:relative; z-index:1; display:flex; gap:.4rem; background:var(--bg); padding:0 .4rem; }
     .nb-ins .choice button { font-size:.72rem; color:var(--accent); background:var(--bg); border:1px solid var(--edge); border-radius:6px; padding:.15rem .55rem; cursor:pointer; }
     .nb-ins .choice button:hover { background:var(--grad); color:var(--accent-ink); border-color:transparent; }
+    /* widget submenu inside the "+" */
+    .nb-ins .wchoice { position:relative; z-index:2; display:flex; flex-wrap:wrap; gap:.3rem; justify-content:center; background:var(--bg); border:1px solid var(--edge); border-radius:10px; padding:.4rem; max-width:min(92vw,30rem); box-shadow:0 8px 26px rgba(0,0,0,.16); }
+    .nb-ins .wchoice button { font-size:.72rem; color:var(--ink); background:var(--panel); border:1px solid var(--edge); border-radius:6px; padding:.2rem .5rem; cursor:pointer; }
+    .nb-ins .wchoice button:hover { background:var(--grad); color:var(--accent-ink); border-color:transparent; }
 
     body.is-edit .edit-only { display: inline-flex; }
     .edit-only { display: none; }
@@ -124,15 +128,8 @@
       <button data-nav="app" id="nav-app">App</button>
     </div>
     <button id="run-btn" class="edit-only">▶ Run<span class="kbd">⌘⏎</span></button>
-    <button id="widgets-btn" class="ghost edit-only" title="Insert a widget">＋ Widgets</button>
     <button id="share-btn" class="ghost" title="Copy a link carrying this document">share</button>
   </header>
-
-  <div id="palette" hidden>
-    <div class="palette-head"><strong>Widgets</strong><span class="hint" id="palette-target"></span><button id="palette-close" class="ghost">✕</button></div>
-    <div class="palette-grid" id="palette-grid"></div>
-    <div class="hint palette-note">Click to append the <code>sl_*</code> call to the document and rerun.</div>
-  </div>
 
   <main id="stage" class="view">
     <section class="pane" id="editor-pane">
