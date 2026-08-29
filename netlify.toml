@@ -1,0 +1,13 @@
+# numerical.run on Netlify — a static single-page app.
+# The heavy assets (RunMat wasm + Monaco) are served from jsDelivr; the small
+# app files are published from dist/. netlify-build.sh assembles dist/.
+
+[build]
+  command = "bash netlify-build.sh"
+  publish = "dist"
+
+# SPA: all state is in the query/hash, so every path serves the one page.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

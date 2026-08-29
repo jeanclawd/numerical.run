@@ -1,295 +1,256 @@
-/* numerical.run shell — two modes over one .nb.md document and one kernel.
+/* numerical.run — single-page app.
  *
- *   Notebook mode : STATEFUL cell execution (Jupyter-style). Each code cell has
- *                   its own ▸ Run (and Ctrl+Enter); running a cell executes it
- *                   against the persistent workspace and updates only that
- *                   cell's output. A widget inside a cell's output reruns just
- *                   that cell. "Run all" resets and runs every cell in order.
+ * One page, two states chosen by the URL:
+ *   • VIEW  (default)  — the .nb.md rendered as an app (Streamlit-style),
+ *                        code hidden, full width. Monaco is NOT loaded.
+ *   • EDIT  (?edit)    — Monaco editor + live preview (App / Notebook tabs).
+ *                        Monaco loads lazily the first time you enter edit.
  *
- *   App mode      : WHOLE-DOCUMENT rerun (Streamlit-style). Every interaction
- *                   resets the session and runs the whole document top-to-bottom;
- *                   widgets and outputs render in place, code hidden, prose
- *                   interleaved.
+ * The document comes from the URL, else a built-in default:
+ *   #code=<base64>  |  ?code=<base64>  |  ?gist=<id | raw-url>  |  (default)
  *
- *   Widgets panel : WYSIWYG — click a widget to write its sl_* call into the
- *                   active code cell (or a new one) and run.
+ * Toggling edit/view updates the URL in place (no reload). Assets are shared
+ * with the deployed site; only the heavy wasm runtime + Monaco may live on a CDN
+ * (window.NUMCFG, injected per environment).
  */
 
 const V = document.body.dataset.v || String(Date.now());
+const CFG = window.NUMCFG || {};
+const RUNTIME = CFG.runtime || './runtime';
+const FIGR = CFG.figrender || './runtime/figrender.mjs';
+const MONACO = CFG.monaco || './monaco';           // dir containing vs/
+
+const q = (s) => document.querySelector(s);
+const status = (t) => { q('#status').textContent = t; const s2 = q('#status2'); if (s2) s2.textContent = t; };
+const b64encode = (s) => btoa(String.fromCharCode(...new TextEncoder().encode(s)));
+const b64decode = (s) => new TextDecoder().decode(Uint8Array.from(atob(s), (c) => c.charCodeAt(0)));
+
+const EXAMPLES = ['waves.nb.md', 'knn.nb.md', 'hello.nb.md'];
+const DEFAULT_DOC = `# numerical.run
+
+A \`.nb.md\` notebook that runs entirely in your browser on the RunMat WASM
+kernel. This is the **app** view — hit *✎ Edit* to open the notebook editor.
+
+\`\`\`matlab {jupyter.code-cell}
+f = sl_slider('frequency', 1, 8, 3, 0.5);
+x = linspace(0, 2*pi, 400);
+figure; plot(x, sin(f * x)); sl_figure();
+sl_metric('frequency', f, '%g');
+\`\`\`
+`;
+
+// ---------------------------------------------------------------- imports + kernel
 const { createKernel } = await import(`./kernel.js?v=${V}`);
 const { parseNbMd, serializeNbMd, newCell } = await import(`./nbmd.js?v=${V}`);
 const { mdToHtml } = await import(`./md.js?v=${V}`);
 
-const $ = (id) => document.getElementById(id);
-const EXAMPLES = ['waves.nb.md', 'knn.nb.md', 'hello.nb.md'];
-
-const b64encode = (s) => btoa(String.fromCharCode(...new TextEncoder().encode(s)));
-const b64decode = (s) => new TextDecoder().decode(Uint8Array.from(atob(s), (c) => c.charCodeAt(0)));
-
 const kernel = await createKernel({
-  statusEl: $('status'),
-  runtimeUrl: './runtime',
-  figrenderUrl: `./runtime/figrender.mjs?v=${V}`,
+  statusEl: q('#status'),
+  runtimeUrl: RUNTIME,
+  figrenderUrl: `${FIGR}?v=${V}`,
   renderUrl: `./render.js?v=${V}`,
   library: await (await fetch(`./lib.m?v=${V}`)).text(),
 });
 
-// ---------------------------------------------------------------- document state
+// ---------------------------------------------------------------- state
 let doc = { frontmatter: null, cells: [] };
-let mode = 'notebook';           // 'notebook' | 'app'
-let lastByCell = new Map();      // cell-index -> output elements
-let activeId = null;             // last-focused code cell (WYSIWYG target)
-const counters = {};             // per-kind widget label counter
-const outNodes = new Map();      // cell-id -> its .cell-out node (notebook)
+let source = '';                 // current document text (source of truth)
+let lastByCell = new Map();
+let pvMode = 'app';              // preview tab in edit mode
+let editing = false;
+let editor = null, monacoReady = false;
+const counters = {};
 
-const status = (t) => { $('status').textContent = t; };
-const cellIndex = (id) => doc.cells.findIndex((c) => c.id === id);
-const codeCellById = (id) => doc.cells.find((c) => c.id === id && c.kind === 'code');
-
-// ---------------------------------------------------------------- running
-function timed(label, promise, done) {
-  status(`${label}…`);
+// ---------------------------------------------------------------- run + render
+function runFrom(text) {
+  source = text;
+  doc = parseNbMd(text);
+  status('running…');
   const t0 = performance.now();
-  promise.then((r) => { status(`${label} · ${Math.round(performance.now() - t0)} ms`); done(r); });
-}
-
-// App mode: whole-document rerun.
-function runApp() { timed('ran', kernel.runAll(doc.cells), (byCell) => { lastByCell = byCell; renderApp(); }); }
-
-// Notebook: run all cells (reset + top-to-bottom), refresh every output.
-function runAllNotebook() { timed('ran all', kernel.runAll(doc.cells), (byCell) => { lastByCell = byCell; refreshOutputs(); }); }
-
-// Notebook: run one cell statefully, refresh only its output.
-function runOneCell(cell) {
-  timed('ran cell', kernel.runCell(cell), (els) => {
-    lastByCell.set(cellIndex(cell.id), els);
-    updateCellOut(cell.id, els);
+  kernel.runAll(doc.cells).then((byCell) => {
+    lastByCell = byCell;
+    const el = q('#dev-time'); if (el) el.textContent = `${Math.round(performance.now() - t0)} ms`;
+    status('ran');
+    render();
   });
 }
+function rerunCurrent() { runFrom(editing && editor ? editor.getValue() : source); }
 
-function runForMode() { mode === 'app' ? runApp() : runAllNotebook(); }
-
-// ---------------------------------------------------------------- setState
-// A widget interaction: notebook reruns just the owning cell; app reruns all.
+function appSetState(label, value, opts = {}) {
+  kernel.markWidget(label, value, opts.once);
+  kernel.runAll(doc.cells).then((byCell) => { lastByCell = byCell; render(); });
+}
 function cellSetState(cell) {
   return (label, value, opts = {}) => {
     kernel.markWidget(label, value, opts.once);
-    timed('ran cell', kernel.runCell(cell), (els) => { lastByCell.set(cellIndex(cell.id), els); updateCellOut(cell.id, els); });
+    kernel.runCell(cell).then((els) => { lastByCell.set(doc.cells.indexOf(cell), els); render(); });
   };
 }
-function appSetState(label, value, opts = {}) {
-  kernel.markWidget(label, value, opts.once);
-  timed('ran', kernel.runAll(doc.cells), (byCell) => { lastByCell = byCell; renderApp(); });
-}
 
-// ---------------------------------------------------------------- notebook view
-function autosize(ta) { ta.style.height = 'auto'; ta.style.height = Math.max(ta.scrollHeight, 34) + 'px'; }
+function render() { (editing && pvMode === 'nb') ? renderNb() : renderApp(); }
 
-function moveCell(id, dir) {
-  const i = cellIndex(id), j = i + dir;
-  if (j < 0 || j >= doc.cells.length) return;
-  [doc.cells[i], doc.cells[j]] = [doc.cells[j], doc.cells[i]];
-  renderNotebook(); runAllNotebook();
-}
-function deleteCell(id) { doc.cells = doc.cells.filter((c) => c.id !== id); renderNotebook(); runAllNotebook(); }
-function addCell(kind, afterId) {
-  const cell = newCell(kind, kind === 'markdown' ? '_New text cell — double-click to edit._' : '');
-  doc.cells.splice(afterId ? cellIndex(afterId) + 1 : doc.cells.length, 0, cell);
-  activeId = cell.id;
-  renderNotebook();
-}
-
-function toolbar(cell) {
-  const bar = document.createElement('div');
-  bar.className = 'cell-bar';
-  if (cell.kind === 'code') {
-    const runb = document.createElement('button');
-    runb.className = 'icon run'; runb.textContent = '▸ Run'; runb.title = 'Run this cell (Ctrl+Enter)';
-    runb.addEventListener('click', () => runOneCell(cell));
-    bar.appendChild(runb);
-  }
-  const badge = document.createElement('span');
-  badge.className = 'cell-badge'; badge.textContent = cell.kind === 'code' ? 'code' : 'md';
-  bar.appendChild(badge);
-  const spacer = document.createElement('span'); spacer.style.flex = '1'; bar.appendChild(spacer);
-  const mk = (label, title, fn) => {
-    const b = document.createElement('button'); b.className = 'icon'; b.textContent = label; b.title = title;
-    b.addEventListener('click', fn); bar.appendChild(b);
-  };
-  mk('↑', 'Move up', () => moveCell(cell.id, -1));
-  mk('↓', 'Move down', () => moveCell(cell.id, +1));
-  mk('+code', 'Add code cell below', () => addCell('code', cell.id));
-  mk('+text', 'Add text cell below', () => addCell('markdown', cell.id));
-  mk('✕', 'Delete cell', () => deleteCell(cell.id));
-  return bar;
-}
-
-function updateCellOut(cellId, els) {
-  const out = outNodes.get(cellId);
-  if (!out) return;
-  out.innerHTML = '';
-  const cell = codeCellById(cellId);
-  if (els?.length && cell) kernel.renderElements(out, els, cellSetState(cell));
-}
-
-function refreshOutputs() {
-  doc.cells.forEach((cell, i) => { if (cell.kind === 'code') updateCellOut(cell.id, lastByCell.get(i) ?? []); });
-}
-
-function renderNotebook() {
-  const root = $('notebook');
-  root.innerHTML = '';
-  outNodes.clear();
-  doc.cells.forEach((cell, i) => {
-    const box = document.createElement('div');
-    box.className = `nb-cell ${cell.kind}${cell.id === activeId ? ' active' : ''}`;
-    box.appendChild(toolbar(cell));
-
-    if (cell.kind === 'code') {
-      const ta = document.createElement('textarea');
-      ta.className = 'cell-src'; ta.spellcheck = false; ta.value = cell.source;
-      ta.addEventListener('input', () => { cell.source = ta.value; autosize(ta); });
-      ta.addEventListener('focus', () => { activeId = cell.id; updatePaletteTarget(); box.classList.add('active'); });
-      ta.addEventListener('keydown', (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runOneCell(cell); }
-      });
-      box.appendChild(ta);
-      const out = document.createElement('div');
-      out.className = 'cell-out';
-      outNodes.set(cell.id, out);
-      const els = lastByCell.get(i) ?? [];
-      if (els.length) kernel.renderElements(out, els, cellSetState(cell));
-      box.appendChild(out);
-      setTimeout(() => autosize(ta), 0);
-    } else {
-      const view = document.createElement('div');
-      view.className = 'md'; view.innerHTML = mdToHtml(cell.source); view.title = 'Double-click to edit';
-      view.addEventListener('dblclick', () => {
-        const ta = document.createElement('textarea');
-        ta.className = 'cell-src'; ta.spellcheck = false; ta.value = cell.source;
-        ta.addEventListener('input', () => autosize(ta));
-        ta.addEventListener('blur', () => { cell.source = ta.value; renderNotebook(); });
-        ta.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); ta.blur(); } });
-        box.replaceChild(ta, view); ta.focus(); autosize(ta);
-      });
-      box.appendChild(view);
-    }
-    root.appendChild(box);
-  });
-
-  const add = document.createElement('div');
-  add.className = 'nb-add';
-  const c = document.createElement('button'); c.textContent = '+ Code';
-  c.addEventListener('click', () => addCell('code', doc.cells.at(-1)?.id));
-  const m = document.createElement('button'); m.textContent = '+ Text';
-  m.addEventListener('click', () => addCell('markdown', doc.cells.at(-1)?.id));
-  add.append(c, m);
-  root.appendChild(add);
-}
-
-// ---------------------------------------------------------------- app view
 function renderApp() {
   const elements = [];
   doc.cells.forEach((cell, i) => {
     if (cell.kind === 'markdown') elements.push({ type: 'text', html: mdToHtml(cell.source) });
     else elements.push(...(lastByCell.get(i) ?? []));
   });
-  kernel.renderElements($('app'), elements, appSetState);
+  kernel.renderElements(q('#pv-app'), elements, appSetState);
+}
+function renderNb() {
+  const root = q('#pv-nb');
+  root.innerHTML = '';
+  doc.cells.forEach((cell, i) => {
+    if (cell.kind === 'markdown') {
+      const d = document.createElement('div'); d.className = 'pv-cell md'; d.innerHTML = mdToHtml(cell.source); root.appendChild(d); return;
+    }
+    const box = document.createElement('div'); box.className = 'pv-cell pv-code';
+    const pre = document.createElement('pre'); pre.textContent = cell.source; box.appendChild(pre);
+    const out = document.createElement('div'); out.className = 'pv-out';
+    const els = lastByCell.get(i) ?? [];
+    if (els.length) kernel.renderElements(out, els, cellSetState(cell));
+    box.appendChild(out); root.appendChild(box);
+  });
 }
 
-function renderCurrent() { mode === 'app' ? renderApp() : renderNotebook(); }
+// ---------------------------------------------------------------- Monaco (lazy)
+function loadScript(src) {
+  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error(`load ${src}`)); document.head.appendChild(s); });
+}
+async function ensureMonaco() {
+  if (monacoReady) return;
+  // A blob worker has no page origin, so importScripts needs an ABSOLUTE URL —
+  // make the Monaco base absolute for the worker (CDN URLs already are).
+  const MON_ABS = /^https?:/.test(MONACO) ? MONACO : location.origin + MONACO;
+  await loadScript(`${MON_ABS}/vs/loader.js`);
+  self.MonacoEnvironment = {
+    getWorkerUrl() {
+      return URL.createObjectURL(new Blob([
+        `self.MonacoEnvironment={baseUrl:'${MON_ABS}/'};importScripts('${MON_ABS}/vs/base/worker/workerMain.js');`
+      ], { type: 'text/javascript' }));
+    }
+  };
+  require.config({ paths: { vs: `${MON_ABS}/vs` } });
+  await new Promise((res) => require(['vs/editor/editor.main'], res));
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  editor = monaco.editor.create(q('#editor'), {
+    value: source, language: 'markdown', theme: dark ? 'vs-dark' : 'vs',
+    fontSize: 13, minimap: { enabled: false }, automaticLayout: true, scrollBeyondLastLine: false,
+    wordWrap: 'on', tabSize: 4, fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+  });
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => runFrom(editor.getValue()));
+  monacoReady = true;
+}
+
+// ---------------------------------------------------------------- mode
+function updateURL() {
+  const params = new URLSearchParams(location.search);
+  if (editing) params.set('edit', '1'); else params.delete('edit');
+  const qs = params.toString();
+  history.replaceState(null, '', location.pathname + (qs ? `?${qs}` : '') + location.hash);
+}
+async function setEditing(on) {
+  editing = on;
+  document.body.classList.toggle('is-edit', on);
+  q('#stage').className = on ? 'edit' : 'view';
+  if (on) { await ensureMonaco(); editor.setValue(source); editor.layout(); }
+  else if (editor) { source = editor.getValue(); }   // keep edits when leaving
+  updateURL();
+  render();
+}
+
+// ---------------------------------------------------------------- gist
+async function fetchGist(ref) {
+  if (/^https?:\/\//.test(ref)) { const r = await fetch(ref); if (!r.ok) throw new Error(`gist url HTTP ${r.status}`); return await r.text(); }
+  const id = ref.split('/').pop();
+  const r = await fetch(`https://api.github.com/gists/${id}`);
+  if (!r.ok) throw new Error(`gist API HTTP ${r.status}`);
+  const files = Object.values((await r.json()).files || {});
+  if (!files.length) throw new Error('gist has no files');
+  const pick = files.find((f) => /\.nb\.md$/.test(f.filename)) || files.find((f) => /\.md$/.test(f.filename)) || files.find((f) => /\.m$/.test(f.filename)) || files[0];
+  if (pick.truncated && pick.raw_url) return await (await fetch(pick.raw_url)).text();
+  return pick.content;
+}
 
 // ---------------------------------------------------------------- WYSIWYG palette
 const WIDGETS = [
-  { kind: 'slider',       bind: true,  label: 'Slider',      snip: (n, l) => `${n} = sl_slider('${l}', 0, 10, 5);` },
-  { kind: 'number_input', bind: true,  label: 'Number',      snip: (n, l) => `${n} = sl_number_input('${l}', 1);` },
-  { kind: 'checkbox',     bind: true,  label: 'Checkbox',    snip: (n, l) => `${n} = sl_checkbox('${l}', true);` },
-  { kind: 'selectbox',    bind: true,  label: 'Select',      snip: (n, l) => `${n} = sl_selectbox('${l}', {'one','two','three'});` },
-  { kind: 'radio',        bind: true,  label: 'Radio',       snip: (n, l) => `${n} = sl_radio('${l}', {'a','b','c'});` },
-  { kind: 'multiselect',  bind: true,  label: 'Multiselect', snip: (n, l) => `${n} = sl_multiselect('${l}', {'a','b','c'});` },
-  { kind: 'text_input',   bind: true,  label: 'Text input',  snip: (n, l) => `${n} = sl_text_input('${l}', '');` },
-  { kind: 'button',       bind: false, label: 'Button',      snip: (n, l) => `if sl_button('${l}')\n    disp('${l} clicked');\nend` },
-  { kind: 'header',       bind: false, label: 'Header',      snip: (n, l) => `sl_header('${l}');` },
-  { kind: 'text',         bind: false, label: 'Text',        snip: (n, l) => `sl_text('${l}');` },
-  { kind: 'metric',       bind: false, label: 'Metric',      snip: (n, l) => `sl_metric('${l}', 42);` },
-  { kind: 'figure',       bind: false, label: 'Figure',      snip: () => `figure;\nplot(1:20, (1:20).^2);\nsl_figure();` },
-  { kind: 'divider',      bind: false, label: 'Divider',     snip: () => `sl_divider();` },
+  { kind: 'slider', bind: true, label: 'Slider', snip: (n, l) => `${n} = sl_slider('${l}', 0, 10, 5);` },
+  { kind: 'number_input', bind: true, label: 'Number', snip: (n, l) => `${n} = sl_number_input('${l}', 1);` },
+  { kind: 'checkbox', bind: true, label: 'Checkbox', snip: (n, l) => `${n} = sl_checkbox('${l}', true);` },
+  { kind: 'selectbox', bind: true, label: 'Select', snip: (n, l) => `${n} = sl_selectbox('${l}', {'one','two','three'});` },
+  { kind: 'radio', bind: true, label: 'Radio', snip: (n, l) => `${n} = sl_radio('${l}', {'a','b','c'});` },
+  { kind: 'text_input', bind: true, label: 'Text input', snip: (n, l) => `${n} = sl_text_input('${l}', '');` },
+  { kind: 'button', bind: false, label: 'Button', snip: (n, l) => `if sl_button('${l}')\n    disp('${l} clicked');\nend` },
+  { kind: 'metric', bind: false, label: 'Metric', snip: (n, l) => `sl_metric('${l}', 42);` },
+  { kind: 'figure', bind: false, label: 'Figure', snip: () => `figure;\nplot(1:20, (1:20).^2);\nsl_figure();` },
+  { kind: 'text', bind: false, label: 'Text', snip: (n, l) => `sl_text('${l}');` },
 ];
-
 function uniq(kind) { counters[kind] = (counters[kind] || 0) + 1; return { name: `${kind}${counters[kind]}`, label: `${kind} ${counters[kind]}` }; }
-
 function insertWidget(w) {
   const { name, label } = uniq(w.kind);
   const snippet = w.snip(name, label);
-  let cell = codeCellById(activeId);
-  if (!cell) { cell = newCell('code', ''); doc.cells.push(cell); activeId = cell.id; }
+  // append to the last code cell, or a new one, then reflect in the editor
+  let d = parseNbMd(editing && editor ? editor.getValue() : source);
+  let cell = [...d.cells].reverse().find((c) => c.kind === 'code');
+  if (!cell) { cell = newCell('code', ''); d.cells.push(cell); }
   cell.source = cell.source.trim() ? `${cell.source.replace(/\s+$/, '')}\n${snippet}` : snippet;
-  if (w.bind) cell.meta.widget = { kind: w.kind, bind: name };
-  if (mode === 'app') { renderApp(); runApp(); }
-  else { renderNotebook(); runOneCell(cell); }
+  const text = serializeNbMd(d);
+  if (editing && editor) editor.setValue(text);
+  runFrom(text);
 }
-
-function updatePaletteTarget() { $('palette-target').textContent = codeCellById(activeId) ? '→ active code cell' : '→ new cell'; }
-
 function buildPalette() {
-  const grid = $('palette-grid');
-  for (const w of WIDGETS) {
-    const b = document.createElement('button'); b.className = 'palette-item'; b.textContent = w.label;
-    b.addEventListener('click', () => insertWidget(w));
-    grid.appendChild(b);
-  }
+  const grid = q('#palette-grid');
+  for (const w of WIDGETS) { const b = document.createElement('button'); b.className = 'palette-item'; b.textContent = w.label; b.addEventListener('click', () => insertWidget(w)); grid.appendChild(b); }
 }
 
-// ---------------------------------------------------------------- mode + shell
-function setMode(m) {
-  mode = m;
-  $('notebook').hidden = m !== 'notebook';
-  $('app').hidden = m !== 'app';
-  $('run-btn').textContent = m === 'app' ? 'Rerun ▸' : 'Run all ▸';
-  $('run-btn').title = m === 'app' ? 'Rerun the whole document' : 'Reset and run every cell top-to-bottom';
-  document.querySelectorAll('#mode button').forEach((b) => b.classList.toggle('on', b.dataset.mode === m));
-  if (m === 'app') runApp(); else renderNotebook();
+// ---------------------------------------------------------------- shell wiring
+function shareLink() { return `${location.origin}${location.pathname}#code=${b64encode(editing && editor ? editor.getValue() : source)}`; }
+
+function wire() {
+  const sel = q('#example');
+  for (const e of EXAMPLES) { const o = document.createElement('option'); o.value = e; o.textContent = e.replace('.nb.md', ''); sel.appendChild(o); }
+  sel.addEventListener('change', async () => {
+    const text = await (await fetch(`./examples/${sel.value}?v=${V}`)).text();
+    if (editing && editor) editor.setValue(text);
+    runFrom(text);
+  });
+  q('#pv-mode').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+    pvMode = b.dataset.view;
+    q('#pv-mode').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+    q('#pv-app').classList.toggle('on', pvMode === 'app');
+    q('#pv-nb').classList.toggle('on', pvMode === 'nb');
+    render();
+  }));
+  q('#run-btn').addEventListener('click', () => runFrom(editor ? editor.getValue() : source));
+  q('#edit-btn').addEventListener('click', () => setEditing(true));
+  q('#view-btn').addEventListener('click', () => setEditing(false));
+  q('#widgets-btn').addEventListener('click', () => { const p = q('#palette'); p.hidden = !p.hidden; });
+  q('#palette-close').addEventListener('click', () => { q('#palette').hidden = true; });
+  q('#share-btn').addEventListener('click', async () => {
+    const url = shareLink();
+    try { await navigator.clipboard.writeText(url); status(`link copied (${url.length} chars)`); }
+    catch { prompt('share link:', url); }
+  });
+  buildPalette();
 }
 
-function loadText(text, run = true) {
-  doc = parseNbMd(text);
-  for (const k in counters) delete counters[k];
-  lastByCell = new Map();
-  activeId = doc.cells.find((c) => c.kind === 'code')?.id ?? null;
-  renderNotebook();
-  if (run) (mode === 'app' ? runApp() : runAllNotebook());
-}
-
-async function loadExample(name) { loadText(await (await fetch(`./examples/${name}?v=${V}`)).text()); }
-
+// ---------------------------------------------------------------- boot
 async function boot() {
-  const params = new URLSearchParams(location.search);
+  wire();
   const hash = new URLSearchParams(location.hash.slice(1));
-  if (hash.get('nb')) { try { return loadText(b64decode(hash.get('nb'))); } catch (e) { status(`bad #nb link: ${e.message}`); } }
-  if (params.get('nb')) {
-    try { const r = await fetch(params.get('nb')); if (!r.ok) throw new Error(`HTTP ${r.status}`); return loadText(await r.text()); }
-    catch (e) { status(`could not fetch ?nb=: ${e.message}`); }
-  }
-  await loadExample(EXAMPLES[0]);
+  const params = new URLSearchParams(location.search);
+  const wantEdit = hash.has('edit') || params.has('edit');
+  try {
+    const code = hash.get('code') || params.get('code');
+    const gist = hash.get('gist') || params.get('gist');
+    if (code) source = b64decode(code);
+    else if (gist) source = await fetchGist(gist);
+    else source = DEFAULT_DOC;
+  } catch (e) { source = DEFAULT_DOC; status(`bad source: ${e.message}`); }
+
+  runFrom(source);
+  if (wantEdit) await setEditing(true);
 }
 
-// wiring
-const exSel = $('example');
-for (const e of EXAMPLES) { const o = document.createElement('option'); o.value = e; o.textContent = e.replace('.nb.md', ''); exSel.appendChild(o); }
-exSel.addEventListener('change', () => void loadExample(exSel.value));
-document.querySelectorAll('#mode button').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
-$('run-btn').addEventListener('click', () => runForMode());
-$('design-btn').addEventListener('click', () => { const p = $('palette'); p.hidden = !p.hidden; updatePaletteTarget(); });
-$('palette-close').addEventListener('click', () => { $('palette').hidden = true; });
-$('share-btn').addEventListener('click', async () => {
-  const url = `${location.origin}${location.pathname}#nb=${b64encode(serializeNbMd(doc))}`;
-  try { await navigator.clipboard.writeText(url); status(`share link copied (${url.length} chars)`); }
-  catch { prompt('share link:', url); }
-});
-document.addEventListener('keydown', (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') { e.preventDefault(); runForMode(); }
-});
-
-buildPalette();
 await boot();
-window.__numerical = { get doc() { return doc; }, serialize: () => serializeNbMd(doc), runApp, runAllNotebook };
+window.__numerical = { get source() { return editing && editor ? editor.getValue() : source; }, setEditing };

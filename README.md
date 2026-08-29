@@ -47,14 +47,33 @@ modes, inspired by the zoetrope playground; responsive down to a phone:
 
 ![Dev environment — Monaco editor on the left, live preview on the right](docs/dev.png)
 
-## Where it runs
+## Single-page app
 
-- **`/`** — the notebook + app shell (editable cells, mode toggle, WYSIWYG).
-- **`/dev`** — the Monaco dev environment above.
-- **`/app`** — a headless runner that renders a `.nb.md` carried in the URL:
-  `#code=<base64>` (or `?code=`), or `?gist=<id|raw-url>` (picks the first
-  `.nb.md`/`.md`/`.m` file). "Open as app" in `/dev` generates the link; each
-  `/app` page links back to `/dev` for editing.
+One page, two states chosen by the URL — no separate routes:
+
+- **View** (default) — the `.nb.md` rendered as an app (Streamlit-style), code
+  hidden, full width. Monaco is not loaded.
+- **Edit** (`?edit`) — a Monaco editor with a live preview (App / Notebook
+  tabs). Monaco loads lazily the first time you enter edit, so plain app views
+  stay light.
+
+The document comes from the URL, else a built-in default:
+
+```
+#code=<base64>   ?code=<base64>   ?gist=<id | raw-url>   (default)
+```
+
+Toggling **✎ Edit** / **View ▸** flips state in place (updating the URL, no
+reload). **share** copies a `#code=` link that carries the whole document.
+
+## Deploy
+
+- **Self-hosted** — `./deploy.sh` builds the static site (RunMat runtime +
+  Monaco vendored locally).
+- **Netlify** — `netlify.toml` runs `netlify-build.sh`, which publishes the
+  small app files and points the heavy assets (RunMat wasm, Monaco) at jsDelivr,
+  so the build stays tiny. All state is in the URL, so a single-page redirect
+  serves every path.
 
 ## Running it
 

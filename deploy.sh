@@ -11,11 +11,13 @@ V="$(date +%Y%m%d%H%M%S)"
 
 mkdir -p "$DEST/examples" "$DEST/runtime"
 
-# HTML pages (version-stamp __V__ so Cloudflare can't serve a stale mix)
-for page in index.html dev.html app.html; do
-  sed "s/__V__/$V/g" "$SRC/$page" > "$DEST/$page"
-done
-cp "$SRC/app.js" "$SRC/dev.js" "$SRC/player.js" "$SRC/kernel.js" "$SRC/nbmd.js" "$SRC/md.js" "$SRC/render.js" "$DEST/"
+# Single-page app. Inject asset locations (self-hosted here) + version stamp.
+sed -e "s|__V__|$V|g" \
+    -e "s|__RUNTIME__|/numerical/runtime|g" \
+    -e "s|__FIGRENDER__|/numerical/runtime/figrender.mjs|g" \
+    -e "s|__MONACO__|/numerical/monaco|g" \
+    "$SRC/index.html" > "$DEST/index.html"
+cp "$SRC/app.js" "$SRC/kernel.js" "$SRC/nbmd.js" "$SRC/md.js" "$SRC/render.js" "$DEST/"
 cp "$SRC/style.css" "$DEST/"
 cp "$SRC/lib.m" "$DEST/lib.m"
 cp "$SRC"/examples/*.nb.md "$DEST/examples/"
