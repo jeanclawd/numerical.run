@@ -25,10 +25,10 @@ Edit on the left, hit **Run** (⌘/Ctrl+Enter). Switch the preview between App a
 Notebook. "Open as app" gives you an /app link that carries this document.
 
 \`\`\`matlab {jupyter.code-cell}
-n = sl_slider('points', 20, 400, 120, 10);
-x = linspace(0, 2*pi, n);
-figure; plot(x, sin(x)); sl_figure();
-sl_metric('n', n, '%d');
+f = sl_slider('frequency', 1, 8, 3, 0.5);
+x = linspace(0, 2*pi, 400);
+figure; plot(x, sin(f * x)); sl_figure();
+sl_metric('frequency', f, '%g');
 \`\`\`
 `;
 
