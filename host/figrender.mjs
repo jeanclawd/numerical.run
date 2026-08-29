@@ -54,12 +54,19 @@ const MATLAB_ORDER = [
   [0.800, 0.278, 0.470], [0.882, 0.392, 0.383], [0.949, 0.518, 0.295],
   [0.988, 0.652, 0.211],
 ];
+// On dark backgrounds the deep-purple head of plasma is nearly unreadable, so the
+// dark cycle shifts the usable window toward the bright end (magenta → yellow).
+const MATLAB_ORDER_DARK = [
+  [0.694, 0.165, 0.565], [0.800, 0.278, 0.470], [0.882, 0.392, 0.383],
+  [0.949, 0.518, 0.295], [0.988, 0.652, 0.211], [0.988, 0.809, 0.145],
+  [0.976, 0.984, 0.054],
+];
 const CYCLABLE = new Set(["line", "line3", "scatter", "stairs", "stem", "area", "error_bar"]);
 
 const sameColor = (a, b) =>
   Array.isArray(a) && a.length >= 3 && Math.abs(a[0] - b[0]) < 5e-3 && Math.abs(a[1] - b[1]) < 5e-3 && Math.abs(a[2] - b[2]) < 5e-3;
 
-function cycleDefaultColors(fig) {
+function cycleDefaultColors(fig, order = MATLAB_ORDER) {
   const byAxes = new Map();
   for (const p of fig.plots ?? []) {
     if (!CYCLABLE.has(p.kind)) continue;
@@ -74,7 +81,7 @@ function cycleDefaultColors(fig) {
     // so even a single plot picks up the plasma default (index 0)
     group.forEach((p, i) => {
       const alpha = Array.isArray(p.color_rgba) && p.color_rgba.length > 3 ? p.color_rgba[3] : 1;
-      p.color_rgba = [...MATLAB_ORDER[i % MATLAB_ORDER.length], alpha];
+      p.color_rgba = [...order[i % order.length], alpha];
       if (p.label != null) recolored.set(p.label, p.color_rgba);
     });
   }
@@ -653,7 +660,7 @@ export function renderFigureScene(scene, options = {}) {
   const theme = { ...(THEMES[opt.theme] ?? THEMES.light), ...(opt.palette ?? {}) };
   const fig = scene?.figure ?? scene;
   if (!fig || !Array.isArray(fig.plots)) throw new TypeError("not a RunMat figure scene");
-  if (opt.cycleDefaults !== false) cycleDefaultColors(fig);
+  if (opt.cycleDefaults !== false) cycleDefaultColors(fig, opt.theme === "dark" ? MATLAB_ORDER_DARK : MATLAB_ORDER);
 
   // MATLAB's figure position is [x y w h]; use it as the default canvas size.
   const pos = fig.metadata?.position;

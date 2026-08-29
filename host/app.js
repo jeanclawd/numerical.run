@@ -325,6 +325,14 @@ function wire() {
     status(copied ? `link copied (${url.length} chars)` : 'link ready');
     if (!copied) prompt('share link:', url);
   });
+
+  // Follow the OS/browser color scheme: re-theme figures (from cached scenes,
+  // no kernel re-run) + Monaco, then re-render the current surface.
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    kernel.reRenderFigures(lastByCell, kernel.pageTheme());
+    if (monacoReady && window.monaco) monaco.editor.setTheme(kernel.pageTheme() === 'dark' ? 'vs-dark' : 'vs');
+    render();
+  });
 }
 
 // ---------------------------------------------------------------- boot

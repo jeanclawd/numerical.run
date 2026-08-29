@@ -88,6 +88,9 @@ export async function createKernel({ statusEl = null, runtimeUrl, figrenderUrl, 
     return rest;
   }
 
+  // The page follows the OS/browser color scheme (see style.css).
+  const pageTheme = () => (typeof matchMedia === 'function' && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+
   async function attachFigures(elements, handles) {
     const slots = elements.filter((e) => e.type === 'figure');
     for (let i = 0; i < slots.length; i++) {
@@ -96,8 +99,11 @@ export async function createKernel({ statusEl = null, runtimeUrl, figrenderUrl, 
       try {
         const bytes = await session.exportFigureScene(handle);
         if (bytes?.length) {
-          slots[i].svg = renderFigureScene(
-            JSON.parse(new TextDecoder().decode(bytes)), { width: 700, height: 420 });
+          // cache the raw scene (as a string) so figures can be re-themed on a
+          // color-scheme change without re-running the kernel — parse fresh each
+          // time since figrender recolors the scene object in place.
+          slots[i].sceneJson = new TextDecoder().decode(bytes);
+          slots[i].svg = renderFigureScene(JSON.parse(slots[i].sceneJson), { width: 700, height: 420, theme: pageTheme() });
         }
       } catch { /* leave the slot empty */ }
     }
@@ -165,5 +171,17 @@ export async function createKernel({ statusEl = null, runtimeUrl, figrenderUrl, 
   // Record a widget interaction before triggering a run (once=button semantics).
   const markWidget = (label, value, once = false) => { state.set(label, value); if (once) oneShot.add(label); };
 
-  return { state, markWidget, runCell, runAll, reset, renderElements };
+  // Re-render every cached figure in a byCell map for the current theme, without
+  // touching the session. Parses each cached scene fresh (figrender mutates it).
+  function reRenderFigures(byCell, theme = pageTheme()) {
+    for (const els of byCell.values()) {
+      for (const e of els) {
+        if (e.type === 'figure' && e.sceneJson) {
+          try { e.svg = renderFigureScene(JSON.parse(e.sceneJson), { width: 700, height: 420, theme }); } catch { /* keep old svg */ }
+        }
+      }
+    }
+  }
+
+  return { state, markWidget, runCell, runAll, reset, renderElements, reRenderFigures, pageTheme };
 }
