@@ -30,10 +30,10 @@ A \`.nb.md\` notebook that runs entirely in your browser on the RunMat WASM
 kernel. Edit the cells; hit **Run** (⌘/Ctrl+Enter). Toggle **App** to see it rendered.
 
 \`\`\`matlab {jupyter.code-cell}
-f = sl_slider('frequency', 1, 8, 3, 0.5);
+f = nr_slider('frequency', 1, 8, 3, 0.5);
 x = linspace(0, 2*pi, 400);
-figure; plot(x, sin(f * x)); sl_figure();
-sl_metric('frequency', f, '%g');
+figure; plot(x, sin(f * x)); nr_figure();
+nr_metric('frequency', f, '%g');
 \`\`\`
 `;
 
@@ -211,7 +211,7 @@ function cellNode(cell) {
   return box;
 }
 function runCellById(cell) { status('running cell…'); kernel.runCell(cell).then((els) => { lastByCell.set(doc.cells.indexOf(cell), els); updateCellOut(cell); status('ran cell'); }); }
-// Per-cell output renders INLINE — drop sl_sidebar/sl_main region routing, which
+// Per-cell output renders INLINE — drop nr_sidebar/nr_main region routing, which
 // only makes sense for the whole-app view (a full-height sticky sidebar inside a
 // single cell's output looks broken).
 function cellElements(cell) { return (lastByCell.get(doc.cells.indexOf(cell)) ?? []).filter((e) => e.type !== 'region'); }
@@ -261,16 +261,16 @@ async function fetchGist(ref) {
 
 // ---------------------------------------------------------------- WYSIWYG palette
 const WIDGETS = [
-  { kind: 'slider', bind: true, label: 'Slider', snip: (n, l) => `${n} = sl_slider('${l}', 0, 10, 5);` },
-  { kind: 'number_input', bind: true, label: 'Number', snip: (n, l) => `${n} = sl_number_input('${l}', 1);` },
-  { kind: 'checkbox', bind: true, label: 'Checkbox', snip: (n, l) => `${n} = sl_checkbox('${l}', true);` },
-  { kind: 'selectbox', bind: true, label: 'Select', snip: (n, l) => `${n} = sl_selectbox('${l}', {'one','two','three'});` },
-  { kind: 'radio', bind: true, label: 'Radio', snip: (n, l) => `${n} = sl_radio('${l}', {'a','b','c'});` },
-  { kind: 'text_input', bind: true, label: 'Text input', snip: (n, l) => `${n} = sl_text_input('${l}', '');` },
-  { kind: 'button', bind: false, label: 'Button', snip: (n, l) => `if sl_button('${l}')\n    disp('${l} clicked');\nend` },
-  { kind: 'metric', bind: false, label: 'Metric', snip: (n, l) => `sl_metric('${l}', 42);` },
-  { kind: 'figure', bind: false, label: 'Figure', snip: () => `figure;\nplot(1:20, (1:20).^2);\nsl_figure();` },
-  { kind: 'text', bind: false, label: 'Text', snip: (n, l) => `sl_text('${l}');` },
+  { kind: 'slider', bind: true, label: 'Slider', snip: (n, l) => `${n} = nr_slider('${l}', 0, 10, 5);` },
+  { kind: 'number_input', bind: true, label: 'Number', snip: (n, l) => `${n} = nr_number_input('${l}', 1);` },
+  { kind: 'checkbox', bind: true, label: 'Checkbox', snip: (n, l) => `${n} = nr_checkbox('${l}', true);` },
+  { kind: 'selectbox', bind: true, label: 'Select', snip: (n, l) => `${n} = nr_selectbox('${l}', {'one','two','three'});` },
+  { kind: 'radio', bind: true, label: 'Radio', snip: (n, l) => `${n} = nr_radio('${l}', {'a','b','c'});` },
+  { kind: 'text_input', bind: true, label: 'Text input', snip: (n, l) => `${n} = nr_text_input('${l}', '');` },
+  { kind: 'button', bind: false, label: 'Button', snip: (n, l) => `if nr_button('${l}')\n    disp('${l} clicked');\nend` },
+  { kind: 'metric', bind: false, label: 'Metric', snip: (n, l) => `nr_metric('${l}', 42);` },
+  { kind: 'figure', bind: false, label: 'Figure', snip: () => `figure;\nplot(1:20, (1:20).^2);\nnr_figure();` },
+  { kind: 'text', bind: false, label: 'Text', snip: (n, l) => `nr_text('${l}');` },
 ];
 function uniq(kind) { counters[kind] = (counters[kind] || 0) + 1; return { name: `${kind}${counters[kind]}`, label: `${kind} ${counters[kind]}` }; }
 // (widgets are inserted via the between-cell "+" — see insertControl/widgetMenu)

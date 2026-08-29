@@ -1,4 +1,4 @@
-/* streamlab renderer — elements in, DOM out. No knowledge of WHERE elements
+/* numerical.run renderer — elements in, DOM out. No knowledge of WHERE elements
  * came from: the in-browser wasm engine (engine.js) and the Python host's thin
  * client both feed it the same parsed marker stream.
  *
@@ -42,11 +42,11 @@ export function renderElements(mount, elements, setState) {
   const scrollY = window.scrollY;
   mount.innerHTML = '';
 
-  const layout = el('div', 'sl-layout');
-  const sidebar = el('aside', 'sl-sidebar');
-  const sidebarContent = el('div', 'sl-sidebar-content');
+  const layout = el('div', 'nr-layout');
+  const sidebar = el('aside', 'nr-sidebar');
+  const sidebarContent = el('div', 'nr-sidebar-content');
   sidebar.appendChild(sidebarContent);
-  const main = el('div', 'sl-main');
+  const main = el('div', 'nr-main');
   layout.append(sidebar, main);
   mount.appendChild(layout);
 
@@ -71,11 +71,11 @@ export function renderElements(mount, elements, setState) {
         break;
       }
       case 'columns': {
-        const wrap = el('div', 'sl-columns');
+        const wrap = el('div', 'nr-columns');
         const n = Math.max(1, Math.min(6, Number(e.count) || 2));
         const cols = [];
         for (let i = 0; i < n; i++) {
-          const c = el('div', 'sl-col');
+          const c = el('div', 'nr-col');
           wrap.appendChild(c);
           cols.push(c);
         }
@@ -101,18 +101,18 @@ export function renderElements(mount, elements, setState) {
       // `html` (used by the live-script document renderer, host/doc.js) carries
       // already-sanitised inline markup — bold/italic/mono/links built in
       // livescript.js. Plain `text` stays textContent-only.
-      case 'title': put(richText('div', 'sl-title', e)); break;
-      case 'header': put(richText('div', 'sl-header', e)); break;
-      case 'text': put(richText('div', 'sl-text', e)); break;
-      case 'caption': put(richText('div', 'sl-caption', e)); break;
-      case 'divider': put(el('hr', 'sl-divider')); break;
-      case 'raw': put(el('pre', 'sl-raw', e.text)); break;
-      case 'code': put(el('pre', 'sl-code', e.text)); break;
-      case 'error': put(el('div', 'sl-error', e.text)); break;
+      case 'title': put(richText('div', 'nr-title', e)); break;
+      case 'header': put(richText('div', 'nr-header', e)); break;
+      case 'text': put(richText('div', 'nr-text', e)); break;
+      case 'caption': put(richText('div', 'nr-caption', e)); break;
+      case 'divider': put(el('hr', 'nr-divider')); break;
+      case 'raw': put(el('pre', 'nr-raw', e.text)); break;
+      case 'code': put(el('pre', 'nr-code', e.text)); break;
+      case 'error': put(el('div', 'nr-error', e.text)); break;
 
       case 'metric': {
-        if (!metricRow) { metricRow = el('div', 'sl-metric-row'); put(metricRow); }
-        const card = el('div', 'sl-metric');
+        if (!metricRow) { metricRow = el('div', 'nr-metric-row'); put(metricRow); }
+        const card = el('div', 'nr-metric');
         card.appendChild(el('div', 'label', e.label));
         card.appendChild(el('div', 'value', e.value));
         if (e.delta !== undefined && e.delta !== null && e.delta !== '') {
@@ -125,7 +125,7 @@ export function renderElements(mount, elements, setState) {
       }
 
       case 'dataframe': {
-        const box = el('div', 'sl-dataframe');
+        const box = el('div', 'nr-dataframe');
         const table = el('table');
         if (e.columns?.length) {
           const tr = el('tr');
@@ -142,13 +142,13 @@ export function renderElements(mount, elements, setState) {
           table.appendChild(tr);
         }
         box.appendChild(table);
-        if (e.truncated) box.appendChild(el('div', 'sl-caption', `showing first ${rows.length} rows`));
+        if (e.truncated) box.appendChild(el('div', 'nr-caption', `showing first ${rows.length} rows`));
         put(box);
         break;
       }
 
       case 'figure': {
-        const box = el('div', 'sl-figure');
+        const box = el('div', 'nr-figure');
         if (e.svg) box.innerHTML = e.svg;
         put(box);
         break;
@@ -156,9 +156,9 @@ export function renderElements(mount, elements, setState) {
 
       // ---- widgets ---------------------------------------------------------
       case 'slider': {
-        const w = el('div', 'sl-widget');
+        const w = el('div', 'nr-widget');
         w.appendChild(el('label', 'wlabel', e.label));
-        const row = el('div', 'sl-slider-row');
+        const row = el('div', 'nr-slider-row');
         const input = document.createElement('input');
         input.type = 'range';
         input.min = e.min; input.max = e.max; input.step = e.step; input.value = e.value;
@@ -172,7 +172,7 @@ export function renderElements(mount, elements, setState) {
       }
 
       case 'number_input': {
-        const w = el('div', 'sl-widget');
+        const w = el('div', 'nr-widget');
         w.appendChild(el('label', 'wlabel', e.label));
         const input = document.createElement('input');
         input.type = 'number';
@@ -187,8 +187,8 @@ export function renderElements(mount, elements, setState) {
       }
 
       case 'checkbox': {
-        const w = el('div', 'sl-widget');
-        const lab = el('label', 'sl-check');
+        const w = el('div', 'nr-widget');
+        const lab = el('label', 'nr-check');
         const input = document.createElement('input');
         input.type = 'checkbox';
         input.checked = !!e.value;
@@ -200,7 +200,7 @@ export function renderElements(mount, elements, setState) {
       }
 
       case 'selectbox': {
-        const w = el('div', 'sl-widget');
+        const w = el('div', 'nr-widget');
         w.appendChild(el('label', 'wlabel', e.label));
         const sel = document.createElement('select');
         for (const opt of e.options ?? []) {
@@ -215,14 +215,14 @@ export function renderElements(mount, elements, setState) {
       }
 
       case 'radio': {
-        const w = el('div', 'sl-widget');
+        const w = el('div', 'nr-widget');
         w.appendChild(el('label', 'wlabel', e.label));
-        const group = el('div', 'sl-radio-group');
+        const group = el('div', 'nr-radio-group');
         for (const opt of e.options ?? []) {
-          const lab = el('label', 'sl-check');
+          const lab = el('label', 'nr-check');
           const input = document.createElement('input');
           input.type = 'radio';
-          input.name = `sl-radio-${e.label}`;
+          input.name = `nr-radio-${e.label}`;
           input.checked = opt === e.value;
           input.addEventListener('change', () => { if (input.checked) setState(e.label, opt); });
           lab.append(input, document.createTextNode(opt));
@@ -234,12 +234,12 @@ export function renderElements(mount, elements, setState) {
       }
 
       case 'multiselect': {
-        const w = el('div', 'sl-widget');
+        const w = el('div', 'nr-widget');
         w.appendChild(el('label', 'wlabel', e.label));
-        const group = el('div', 'sl-radio-group');
+        const group = el('div', 'nr-radio-group');
         const chosen = new Set(e.value ?? []);
         for (const opt of e.options ?? []) {
-          const lab = el('label', 'sl-check');
+          const lab = el('label', 'nr-check');
           const input = document.createElement('input');
           input.type = 'checkbox';
           input.checked = chosen.has(opt);
@@ -256,7 +256,7 @@ export function renderElements(mount, elements, setState) {
       }
 
       case 'text_input': {
-        const w = el('div', 'sl-widget');
+        const w = el('div', 'nr-widget');
         w.appendChild(el('label', 'wlabel', e.label));
         const input = document.createElement('input');
         input.type = 'text';
@@ -268,8 +268,8 @@ export function renderElements(mount, elements, setState) {
       }
 
       case 'button': {
-        const w = el('div', 'sl-widget');
-        const btn = el('button', 'sl-button', e.label);
+        const w = el('div', 'nr-widget');
+        const btn = el('button', 'nr-button', e.label);
         btn.addEventListener('click', () => setState(e.label, true, { once: true }));
         w.appendChild(btn);
         put(w);
@@ -289,10 +289,10 @@ export function renderElements(mount, elements, setState) {
         window.matchMedia('(max-width: 768px)').matches;
       mount.dataset.slSidebar = narrow ? 'collapsed' : 'open';
     }
-    const collapseBtn = el('button', 'sl-sidebar-toggle', '«');
+    const collapseBtn = el('button', 'nr-sidebar-toggle', '«');
     collapseBtn.title = 'Collapse sidebar';
     sidebar.insertBefore(collapseBtn, sidebarContent);
-    const expandBtn = el('button', 'sl-sidebar-open', '»');
+    const expandBtn = el('button', 'nr-sidebar-open', '»');
     expandBtn.title = 'Open sidebar';
     layout.appendChild(expandBtn);
     const apply = () => {

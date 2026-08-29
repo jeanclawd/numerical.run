@@ -8,9 +8,9 @@
  *                       (numerical.run puts widget/layout data in `:widget:`)
  *
  *     ```matlab {jupyter.code-cell}
- *     :widget: {kind: sl_slider, bind: f, x: 120, y: 40, w: 220}
+ *     :widget: {kind: nr_slider, bind: f, x: 120, y: 40, w: 220}
  *
- *     f = sl_slider('frequency', 1, 8, 2, 0.5);
+ *     f = nr_slider('frequency', 1, 8, 2, 0.5);
  *     ```
  *
  * Delete the metadata and it's still a plain Markdown Jupyter notebook that any
@@ -24,7 +24,7 @@ let _id = 0;
 const nextId = () => `c${++_id}`;
 
 // Lenient object parser for MyST-shorthand values like
-// `{kind: sl_slider, x: 120}` — unquoted keys and values, numbers coerced.
+// `{kind: nr_slider, x: 120}` — unquoted keys and values, numbers coerced.
 export function parseLooseObject(s) {
   const out = {};
   const body = String(s).trim().replace(/^\{/, '').replace(/\}$/, '');

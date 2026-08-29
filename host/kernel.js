@@ -10,21 +10,20 @@
  *                   resets the session and runs every cell top-to-bottom, so
  *                   the page always reflects a clean run of the whole document.
  *
- * Both share the same session, the same sl_* widget library and %%SL%% marker
+ * Both share the same session, the same nr_* widget library and %%NR%% marker
  * protocol, the same figure pipeline, and the same widget state store.
  *
  * The one hard RunMat 0.6.1 constraint shaping this: script-local functions are
  * redefined wholesale per executeRequest and don't persist across calls, so the
- * sl_* library (and the baked sl_state_) is appended to EVERY execution — a
+ * nr_* library (and the baked nr_state_) is appended to EVERY execution — a
  * single cell or the whole document. Workspace VARIABLES do persist across
  * executeRequest, which is exactly what makes stateful cell execution work.
  *
- * Reused verbatim from streamlab: the RunMat WASM runtime, figrender, the
- * widget renderer (render.js), the sl_* widget library (lib.m), and the marker
- * protocol.
+ * Components: the RunMat WASM runtime, figrender, the widget renderer
+ * (render.js), the nr_* widget library (lib.m), and the %%NR%% marker protocol.
  */
 
-const MARKER = '%%SL%%';
+const MARKER = '%%NR%%';
 
 export async function createKernel({ statusEl = null, runtimeUrl, figrenderUrl, renderUrl, library }) {
   const status = (t) => { if (statusEl) statusEl.textContent = t; };
@@ -56,7 +55,7 @@ export async function createKernel({ statusEl = null, runtimeUrl, figrenderUrl, 
     const keys = [...state.keys(), 0];
     const values = [...state.keys()].map((k) => state.get(k)).concat(0);
     const json = JSON.stringify({ keys, values }).replace(/'/g, "''");
-    return `function st = sl_state_()\n    st = jsondecode('${json}');\nend\n`;
+    return `function st = nr_state_()\n    st = jsondecode('${json}');\nend\n`;
   }
 
   function parseStream(text) {
@@ -116,7 +115,7 @@ export async function createKernel({ statusEl = null, runtimeUrl, figrenderUrl, 
 
   // ------------------------------------------------------ execution
   // Run one code cell against the CURRENT workspace (no reset). Returns its
-  // output elements. sl_* library + baked state are appended per RunMat's rule.
+  // output elements. nr_* library + baked state are appended per RunMat's rule.
   async function _execCell(cell) {
     if (cell.kind !== 'code') return [];
     streamBuf = ''; streaming = true;

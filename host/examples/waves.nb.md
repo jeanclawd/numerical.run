@@ -9,11 +9,11 @@ RunMat WASM kernel.
 Controls — drag the sliders in App mode, or run this cell and interact inline.
 
 ```matlab {jupyter.code-cell}
-n    = sl_slider('points', 20, 600, 200, 10);
-f    = sl_slider('frequency', 1, 8, 2, 0.5);
-damp = sl_slider('damping', 0, 1, 0.3, 0.05);
-kind = sl_selectbox('wave', {'sine', 'cosine', 'pulse'});
-env  = sl_checkbox('show envelope', true);
+n    = nr_slider('points', 20, 600, 200, 10);
+f    = nr_slider('frequency', 1, 8, 2, 0.5);
+damp = nr_slider('damping', 0, 1, 0.3, 0.05);
+kind = nr_selectbox('wave', {'sine', 'cosine', 'pulse'});
+env  = nr_checkbox('show envelope', true);
 ```
 
 +++
@@ -38,7 +38,7 @@ if env
 end
 title(sprintf('%s, f = %.1f, damping = %.2f', kind, f, damp));
 xlabel('x');
-sl_figure();
+nr_figure();
 ```
 
 +++
@@ -46,7 +46,7 @@ sl_figure();
 Summary metrics:
 
 ```matlab {jupyter.code-cell}
-sl_metric('peak', max(y), '%.3f');
-sl_metric('mean |y|', mean(abs(y)), '%.3f');
-sl_text('%d points, wave energy %.2f', n, sum(y.^2));
+nr_metric('peak', max(y), '%.3f');
+nr_metric('mean |y|', mean(abs(y)), '%.3f');
+nr_text('%d points, wave energy %.2f', n, sum(y.^2));
 ```

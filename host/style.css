@@ -1,4 +1,4 @@
-/* streamlab — Streamlit's calm, centered look. Light and dark. */
+/* numerical.run — a calm, centered look. Light and dark. */
 
 :root {
   color-scheme: light dark;
@@ -95,15 +95,15 @@ button.ghost { background: transparent; }
 
 main { flex: 1; display: flex; justify-content: center; padding: 2rem 1rem 3rem; }
 .app-column { width: 100%; max-width: 46rem; }
-.boot-note, .sl-caption { color: var(--muted); font-size: 0.85rem; }
+.boot-note, .nr-caption { color: var(--muted); font-size: 0.85rem; }
 
 /* ---- elements ---- */
-.sl-title { font-size: 1.9rem; font-weight: 700; margin: 0.2rem 0 0.6rem; letter-spacing: -0.01em; }
-.sl-header { font-size: 1.25rem; font-weight: 650; margin: 1.1rem 0 0.4rem; }
-.sl-text { margin: 0.45rem 0; line-height: 1.55; }
-.sl-caption { margin: 0.2rem 0 0.9rem; }
-.sl-divider { border: 0; border-top: 1px solid var(--edge); margin: 1.2rem 0; }
-.sl-raw {
+.nr-title { font-size: 1.9rem; font-weight: 700; margin: 0.2rem 0 0.6rem; letter-spacing: -0.01em; }
+.nr-header { font-size: 1.25rem; font-weight: 650; margin: 1.1rem 0 0.4rem; }
+.nr-text { margin: 0.45rem 0; line-height: 1.55; }
+.nr-caption { margin: 0.2rem 0 0.9rem; }
+.nr-divider { border: 0; border-top: 1px solid var(--edge); margin: 1.2rem 0; }
+.nr-raw {
   font: 12px/1.5 ui-monospace, Menlo, monospace;
   background: var(--panel);
   border: 1px solid var(--edge);
@@ -113,7 +113,7 @@ main { flex: 1; display: flex; justify-content: center; padding: 2rem 1rem 3rem;
   color: var(--muted);
   margin: 0.5rem 0;
 }
-.sl-error {
+.nr-error {
   border: 1px solid #e5484d55;
   background: #e5484d14;
   border-radius: 7px;
@@ -125,7 +125,7 @@ main { flex: 1; display: flex; justify-content: center; padding: 2rem 1rem 3rem;
 
 /* live-script document renderer (host/doc.js): a source code block, monospace
    equations, inline markup in prose, and list blocks. */
-.sl-code {
+.nr-code {
   font: 12.5px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
   background: var(--panel);
   border: 1px solid var(--edge);
@@ -136,53 +136,53 @@ main { flex: 1; display: flex; justify-content: center; padding: 2rem 1rem 3rem;
   overflow-x: auto;
   margin: 0.7rem 0 0.3rem;
 }
-.sl-equation {
+.nr-equation {
   font: 0.95em ui-monospace, Menlo, monospace;
   background: var(--panel);
   border: 1px solid var(--edge);
   border-radius: 5px;
   padding: 0.05rem 0.35rem;
 }
-.sl-text code { font: 0.9em ui-monospace, Menlo, monospace; background: var(--panel); border-radius: 4px; padding: 0.05rem 0.3rem; }
-.sl-text a { color: var(--accent); }
-.sl-list { margin: 0.45rem 0; padding-left: 1.3rem; line-height: 1.55; }
-.sl-list li { margin: 0.15rem 0; }
-.sl-image-stub { color: var(--muted); }
+.nr-text code { font: 0.9em ui-monospace, Menlo, monospace; background: var(--panel); border-radius: 4px; padding: 0.05rem 0.3rem; }
+.nr-text a { color: var(--accent); }
+.nr-list { margin: 0.45rem 0; padding-left: 1.3rem; line-height: 1.55; }
+.nr-list li { margin: 0.15rem 0; }
+.nr-image-stub { color: var(--muted); }
 
-.sl-figure { margin: 0.8rem 0; }
-.sl-figure svg { max-width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; }
+.nr-figure { margin: 0.8rem 0; }
+.nr-figure svg { max-width: 100%; height: auto; border: 1px solid var(--edge); border-radius: 8px; }
 
-.sl-metric-row { display: flex; gap: 0.8rem; flex-wrap: wrap; margin: 0.6rem 0; }
-.sl-metric {
+.nr-metric-row { display: flex; gap: 0.8rem; flex-wrap: wrap; margin: 0.6rem 0; }
+.nr-metric {
   border: 1px solid var(--edge);
   border-radius: 9px;
   padding: 0.55rem 0.95rem;
   min-width: 7.5rem;
   background: var(--panel);
 }
-.sl-metric .label { font-size: 0.72rem; color: var(--muted); }
-.sl-metric .value { font-size: 1.45rem; font-weight: 650; color: var(--metric); font-variant-numeric: tabular-nums; }
+.nr-metric .label { font-size: 0.72rem; color: var(--muted); }
+.nr-metric .value { font-size: 1.45rem; font-weight: 650; color: var(--metric); font-variant-numeric: tabular-nums; }
 
 /* ---- widgets ---- */
-.sl-widget { margin: 0.85rem 0; }
-.sl-widget > .wlabel { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.25rem; }
-.sl-slider-row { display: flex; align-items: center; gap: 0.8rem; }
-.sl-slider-row input[type="range"] { flex: 1; accent-color: var(--accent); }
-.sl-slider-row .val {
+.nr-widget { margin: 0.85rem 0; }
+.nr-widget > .wlabel { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.25rem; }
+.nr-slider-row { display: flex; align-items: center; gap: 0.8rem; }
+.nr-slider-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+.nr-slider-row .val {
   font-variant-numeric: tabular-nums;
   font-size: 0.85rem;
   min-width: 3.6rem;
   text-align: right;
 }
-.sl-check { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
-.sl-check input { accent-color: var(--accent); width: 1rem; height: 1rem; }
-.sl-widget select, .sl-widget input[type="text"] { width: 100%; max-width: 20rem; padding: 0.35rem 0.55rem; }
-.sl-button {
+.nr-check { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+.nr-check input { accent-color: var(--accent); width: 1rem; height: 1rem; }
+.nr-widget select, .nr-widget input[type="text"] { width: 100%; max-width: 20rem; padding: 0.35rem 0.55rem; }
+.nr-button {
   background: var(--panel);
   padding: 0.4rem 1rem;
   border-radius: 8px;
 }
-.sl-button:active { background: var(--accent); color: var(--accent-ink); }
+.nr-button:active { background: var(--accent); color: var(--accent-ink); }
 
 .rerunning { opacity: 0.55; transition: opacity 0.15s; }
 
@@ -195,14 +195,14 @@ footer {
 footer a { color: inherit; }
 
 /* ---- v0.3: Streamlit-style sidebar (full height, collapsible) ---- */
-.sl-layout { display: block; }
+.nr-layout { display: block; }
 
 /* with a sidebar the app goes full-bleed; the main column re-centers itself */
 main:has(.has-sidebar) { padding: 0; }
 .app-column:has(.has-sidebar) { max-width: none; }
 
-.sl-layout.has-sidebar { display: flex; align-items: stretch; min-height: calc(100vh - 110px); }
-.sl-layout.has-sidebar .sl-sidebar {
+.nr-layout.has-sidebar { display: flex; align-items: stretch; min-height: calc(100vh - 110px); }
+.nr-layout.has-sidebar .nr-sidebar {
   position: sticky;
   top: 0;
   align-self: flex-start;
@@ -214,16 +214,16 @@ main:has(.has-sidebar) { padding: 0; }
   border-right: 1px solid var(--edge);
   transition: flex-basis 0.2s ease, width 0.2s ease;
 }
-.sl-sidebar-content { padding: 2.6rem 1.3rem 2rem; }
-.sl-layout.has-sidebar .sl-main {
+.nr-sidebar-content { padding: 2.6rem 1.3rem 2rem; }
+.nr-layout.has-sidebar .nr-main {
   flex: 1;
   min-width: 0;
   padding: 2rem 1.5rem 3rem;
 }
-.sl-layout.has-sidebar .sl-main > * { max-width: 46rem; margin-inline: auto; }
+.nr-layout.has-sidebar .nr-main > * { max-width: 46rem; margin-inline: auto; }
 
 /* collapse / expand controls */
-.sl-sidebar-toggle {
+.nr-sidebar-toggle {
   position: absolute;
   top: 0.55rem;
   right: 0.55rem;
@@ -236,8 +236,8 @@ main:has(.has-sidebar) { padding: 0; }
   border-radius: 6px;
   cursor: pointer;
 }
-.sl-sidebar-toggle:hover { background: var(--edge); color: var(--ink); }
-.sl-sidebar-open {
+.nr-sidebar-toggle:hover { background: var(--edge); color: var(--ink); }
+.nr-sidebar-open {
   display: none;
   position: fixed;
   top: 3.4rem;
@@ -252,9 +252,9 @@ main:has(.has-sidebar) { padding: 0; }
   cursor: pointer;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
-.sl-sidebar-open:hover { color: var(--ink); border-color: var(--accent); }
-.sidebar-collapsed .sl-sidebar-open { display: block; }
-.sl-layout.sidebar-collapsed .sl-sidebar {
+.nr-sidebar-open:hover { color: var(--ink); border-color: var(--accent); }
+.sidebar-collapsed .nr-sidebar-open { display: block; }
+.nr-layout.sidebar-collapsed .nr-sidebar {
   flex-basis: 0;
   width: 0;
   border-right: none;
@@ -263,7 +263,7 @@ main:has(.has-sidebar) { padding: 0; }
 
 /* ---- responsive: sidebar becomes a slide-in overlay ---- */
 @media (max-width: 768px) {
-  .sl-layout.has-sidebar .sl-sidebar {
+  .nr-layout.has-sidebar .nr-sidebar {
     position: fixed;
     top: 0;
     left: 0;
@@ -277,43 +277,43 @@ main:has(.has-sidebar) { padding: 0; }
     transition: transform 0.25s ease;
     border-right: 1px solid var(--edge);
   }
-  .sl-layout.sidebar-collapsed .sl-sidebar {
+  .nr-layout.sidebar-collapsed .nr-sidebar {
     transform: translateX(-105%);
     width: min(82vw, 300px);
     overflow-y: auto;
   }
-  .sl-layout.has-sidebar .sl-main { padding: 1.2rem 0.9rem 2.5rem; }
+  .nr-layout.has-sidebar .nr-main { padding: 1.2rem 0.9rem 2.5rem; }
   main { padding: 1.2rem 0.8rem 2.5rem; }
-  .sl-title { font-size: 1.5rem; }
+  .nr-title { font-size: 1.5rem; }
   header { gap: 0.5rem; padding: 0.6rem 0.8rem; }
   nav { margin-left: 0; width: 100%; }
-  .sl-metric { min-width: 6rem; padding: 0.45rem 0.7rem; }
-  .sl-metric .value { font-size: 1.2rem; }
+  .nr-metric { min-width: 6rem; padding: 0.45rem 0.7rem; }
+  .nr-metric .value { font-size: 1.2rem; }
   #source { min-height: 150px; }
 }
-.sl-columns { display: flex; gap: 1rem; margin: 0.6rem 0; flex-wrap: wrap; }
-.sl-col { flex: 1; min-width: 9rem; }
+.nr-columns { display: flex; gap: 1rem; margin: 0.6rem 0; flex-wrap: wrap; }
+.nr-col { flex: 1; min-width: 9rem; }
 
 /* ---- v0.2: dataframe ---- */
-.sl-dataframe { margin: 0.7rem 0; overflow-x: auto; }
-.sl-dataframe table { border-collapse: collapse; font-size: 0.82rem; font-variant-numeric: tabular-nums; width: 100%; }
-.sl-dataframe th {
+.nr-dataframe { margin: 0.7rem 0; overflow-x: auto; }
+.nr-dataframe table { border-collapse: collapse; font-size: 0.82rem; font-variant-numeric: tabular-nums; width: 100%; }
+.nr-dataframe th {
   text-align: left; padding: 0.3rem 0.65rem; color: var(--muted);
   border-bottom: 2px solid var(--edge); font-weight: 600; position: sticky; top: 0; background: var(--bg);
 }
-.sl-dataframe td { padding: 0.26rem 0.65rem; border-bottom: 1px solid var(--edge); }
-.sl-dataframe tr:hover td { background: var(--panel); }
+.nr-dataframe td { padding: 0.26rem 0.65rem; border-bottom: 1px solid var(--edge); }
+.nr-dataframe tr:hover td { background: var(--panel); }
 
 /* ---- v0.2: widgets ---- */
-.sl-radio-group { display: flex; flex-direction: column; gap: 0.3rem; }
-.sl-widget input[type="number"] { width: 8rem; padding: 0.3rem 0.5rem; }
-.sl-metric .delta { font-size: 0.72rem; margin-top: 0.1rem; }
-.sl-metric .delta.up { color: var(--metric); }
-.sl-metric .delta.down { color: #d33; }
+.nr-radio-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.nr-widget input[type="number"] { width: 8rem; padding: 0.3rem 0.5rem; }
+.nr-metric .delta { font-size: 0.72rem; margin-top: 0.1rem; }
+.nr-metric .delta.up { color: var(--metric); }
+.nr-metric .delta.down { color: #d33; }
 
 /* ============================================================================
    numerical.run shell — notebook view, mode toggle, WYSIWYG palette.
-   (The .sl-* rules above are reused as-is by render.js for widgets & outputs.)
+   (The .nr-* rules above are reused as-is by render.js for widgets & outputs.)
    ============================================================================ */
 
 .wordmark { font-weight: 600; }

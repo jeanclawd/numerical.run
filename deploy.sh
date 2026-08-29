@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Deploy numerical.run to /opt/sites/numerical (served, basicauth-gated, at
-# jean-clawd.com/numerical/). Reuses streamlab's RunMat WASM runtime.
+# Deploy the numerical.run SPA to /opt/sites/numerical — a self-hosted,
+# basicauth-gated preview (Netlify serves the public site).
 set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")" && pwd)/host"
 DEST=/opt/sites/numerical
-RUNTIME_SRC=/opt/sites/streamlab/runtime
+RUNTIME_SRC=/opt/runmat-runtime
 MONACO_SRC=/opt/zoetrope-playground/static/monaco
 V="$(date +%Y%m%d%H%M%S)"
 
@@ -29,7 +29,7 @@ if [ ! -d "$DEST/monaco/vs" ]; then
   cp -r "$MONACO_SRC" "$DEST/monaco"
 fi
 
-# RunMat WASM runtime + figrender (shared with streamlab)
+# RunMat WASM runtime + figrender (figrender ships in the repo under host/)
 cp "$RUNTIME_SRC/runmat_wasm_web.js" "$RUNTIME_SRC/runmat_wasm_web_bg.wasm" "$DEST/runtime/"
 cp "$SRC/../host/figrender.mjs" "$DEST/runtime/figrender.mjs" 2>/dev/null \
   || cp "$RUNTIME_SRC/figrender.mjs" "$DEST/runtime/figrender.mjs"

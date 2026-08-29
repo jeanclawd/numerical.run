@@ -3,13 +3,13 @@
 Controls live in the sidebar (App mode). The script reruns on every change.
 
 ```matlab {jupyter.code-cell}
-sl_sidebar();
-sl_header('controls');
-k = sl_number_input('neighbours (k)', 5, 1, 15, 2);
-jit = sl_slider('jitter', 0, 0.8, 0.3, 0.05);
-metric = sl_radio('distance view', {'accuracy', 'errors'});
-show_table = sl_checkbox('show test points', true);
-sl_main();
+nr_sidebar();
+nr_header('controls');
+k = nr_number_input('neighbours (k)', 5, 1, 15, 2);
+jit = nr_slider('jitter', 0, 0.8, 0.3, 0.05);
+metric = nr_radio('distance view', {'accuracy', 'errors'});
+show_table = nr_checkbox('show test points', true);
+nr_main();
 ```
 
 +++
@@ -37,14 +37,14 @@ for i = 1:numel(yte)
 end
 good = double(gather(yhat)) == yte;
 
-prev = sl_state('prev accuracy', mean(good));
-sl_state_set('prev accuracy', mean(good));
+prev = nr_state('prev accuracy', mean(good));
+nr_state_set('prev accuracy', mean(good));
 
 figure;
 scatter(ax, ay, 26, 'filled'); hold on; scatter(bx, by, 26, 'filled');
 title(sprintf('k = %d, jitter = %.2f', k, jit));
 legend('class 0', 'class 1');
-sl_figure();
+nr_figure();
 ```
 
 +++
@@ -52,19 +52,19 @@ sl_figure();
 Report accuracy and, optionally, the test points:
 
 ```matlab {jupyter.code-cell}
-sl_columns(2);
+nr_columns(2);
 if strcmp(metric, 'accuracy')
-    sl_metric('test accuracy', mean(good), '%.4f', mean(good) - prev);
+    nr_metric('test accuracy', mean(good), '%.4f', mean(good) - prev);
 else
-    sl_metric('errors', sum(~good), '%d');
+    nr_metric('errors', sum(~good), '%d');
 end
-sl_nextcol();
-sl_metric('train / test', numel(ytr), '%d + 20');
-sl_endcols();
+nr_nextcol();
+nr_metric('train / test', numel(ytr), '%d + 20');
+nr_endcols();
 
 if show_table
-    sl_header('test points');
+    nr_header('test points');
     T = [Xte yte double(gather(yhat)) double(good)];
-    sl_dataframe(T, {'x', 'y', 'true', 'predicted', 'correct'});
+    nr_dataframe(T, {'x', 'y', 'true', 'predicted', 'correct'});
 end
 ```
