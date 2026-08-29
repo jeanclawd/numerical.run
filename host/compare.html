@@ -98,34 +98,11 @@
     <span class="vbadge" id="vbadge" hidden></span>
     <span class="tag" id="vname"></span>
     <span class="spacer"></span>
+    <div class="seg" id="variant-seg" title="Switch design option"></div>
     <div class="seg" id="mode-seg" hidden></div>
     <button id="run-btn" hidden>▶ Run</button>
-    <a class="ghost" id="others" href="./compare.html" hidden>↔ other options</a>
     <span id="status" class="tag"></span>
   </header>
-
-  <div id="chooser">
-    <div class="inner">
-      <h1>Consolidating the editor & notebook</h1>
-      <p class="lead">Two ways to remove the redundancy of showing the source twice. Open each, toggle to the app, and get a feel. Same document and kernel underneath.</p>
-      <div class="cards">
-        <a class="card" href="./compare.html?variant=1">
-          <div class="n">OPTION 1</div>
-          <h3>Notebook is the editor</h3>
-          <p>Editable cells (Monaco per code cell) with output inline underneath — one surface that edits, runs, and shows results. App is a separate toggle.</p>
-          <div class="tick"><span class="good">＋</span> no duplicated render; most notebook-native</div>
-          <div class="tick"><span class="bad">−</span> biggest change; no single raw-source view</div>
-        </a>
-        <a class="card" href="./compare.html?variant=2">
-          <div class="n">OPTION 2</div>
-          <h3>Editor + App only</h3>
-          <p>One Monaco editing the whole .nb.md, with the live App preview beside it. The read-only Notebook tab is gone.</p>
-          <div class="tick"><span class="good">＋</span> simplest; source stays one place</div>
-          <div class="tick"><span class="bad">−</span> no per-cell output attribution</div>
-        </a>
-      </div>
-    </div>
-  </div>
 
   <main id="stage" hidden>
     <section class="pane" id="editor-pane">

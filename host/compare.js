@@ -18,14 +18,30 @@ const VARIANT = Number(new URLSearchParams(location.search).get('variant') || 0)
 const NAMES = { 1: 'Notebook is the editor', 2: 'Editor + App only' };
 
 if (VARIANT !== 1 && VARIANT !== 2) {
-  // chooser stays visible (markup handles it); nothing else to do.
+  // no compare homepage anymore — land directly on option 1
+  const p = new URLSearchParams(location.search); p.set('variant', '1');
+  location.replace(`${location.pathname}?${p}${location.hash}`);
 } else {
-  q('#chooser').hidden = true;
   q('#stage').hidden = false;
   q('#vbadge').hidden = false; q('#vbadge').textContent = `option ${VARIANT}`;
   q('#vname').textContent = NAMES[VARIANT];
-  q('#others').hidden = false;
   boot();
+}
+
+const b64encode = (s) => btoa(String.fromCharCode(...new TextEncoder().encode(s)));
+function currentSource() { return VARIANT === 1 ? serializeNbMd(doc) : (blobEditor ? blobEditor.getValue() : source); }
+function buildVariantSeg() {
+  const seg = q('#variant-seg'); seg.innerHTML = '';
+  [[1, 'Notebook editor'], [2, 'Editor + App']].forEach(([n, label]) => {
+    const btn = document.createElement('button'); btn.textContent = label; btn.className = n === VARIANT ? 'on' : '';
+    btn.onclick = () => {
+      if (n === VARIANT) return;
+      const p = new URLSearchParams(location.search); p.set('variant', n);
+      // carry the current document across the switch
+      location.href = `${location.pathname}?${p}#code=${b64encode(currentSource())}`;
+    };
+    seg.appendChild(btn);
+  });
 }
 
 const status = (t) => { q('#status').textContent = t; const s2 = q('#status2'); if (s2) s2.textContent = t; };
@@ -198,6 +214,7 @@ function renderCellsOutputs() { doc.cells.forEach((cell) => { if (cell.kind === 
 
 // ---------------------------------------------------------------- common wiring
 function wireCommon() {
+  buildVariantSeg();
   const runBtn = q('#run-btn'); runBtn.hidden = false; runBtn.onclick = runAll;
   if (VARIANT === 1) runBtn.textContent = '▶ Run all';
 }
