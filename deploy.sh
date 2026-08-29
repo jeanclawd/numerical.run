@@ -18,6 +18,12 @@ sed -e "s|__V__|$V|g" \
     -e "s|__MONACO__|/numerical/monaco|g" \
     "$SRC/index.html" > "$DEST/index.html"
 cp "$SRC/app.js" "$SRC/kernel.js" "$SRC/nbmd.js" "$SRC/md.js" "$SRC/render.js" "$DEST/"
+
+# consolidation comparison prototypes (box-only; not deployed to Netlify)
+if [ -f "$SRC/compare.html" ]; then
+  sed "s|__V__|$V|g" "$SRC/compare.html" > "$DEST/compare.html"
+  cp "$SRC/compare.js" "$DEST/"
+fi
 cp "$SRC/style.css" "$DEST/"
 cp "$SRC/lib.m" "$DEST/lib.m"
 cp "$SRC"/examples/*.nb.md "$DEST/examples/"

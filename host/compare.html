@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>numerical.run · consolidation options</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./style.css?v=__V__">
+  <script>window.NUMCFG = { runtime: './runtime', figrender: './runtime/figrender.mjs', monaco: './monaco' };</script>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    [hidden] { display: none !important; }   /* author `main{display:flex}` else beats the UA hidden rule */
+    body { display: flex; flex-direction: column; background: var(--bg); color: var(--ink); }
+    header { display: flex; align-items: center; gap: 0.5rem 0.85rem; padding: 0.55rem 1rem; border-bottom: 1px solid var(--edge); background: var(--panel); flex: none; flex-wrap: wrap; position: relative; }
+    header::after { content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:var(--grad); opacity:.9; }
+    .wordmark { font-weight: 600; } .wordmark b { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 800; }
+    .vbadge { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: .1rem .5rem; }
+    .tag { font-size: 0.72rem; color: var(--muted); }
+    header .spacer { flex: 1; }
+    button, select { font: inherit; }
+    #run-btn { background: var(--grad); color: var(--accent-ink); border: none; font-weight: 600; padding: 0.3rem 0.8rem; border-radius: 7px; cursor: pointer; }
+    button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--edge); border-radius: 7px; padding: 0.28rem 0.65rem; font-size: 0.8rem; cursor: pointer; }
+    button.ghost:hover { color: var(--ink); border-color: var(--accent); }
+    select { background: var(--panel); color: var(--ink); border: 1px solid var(--edge); border-radius: 7px; padding: 0.26rem 0.5rem; font-size: 0.8rem; }
+    .seg { display: inline-flex; border: 1px solid var(--edge); border-radius: 7px; overflow: hidden; }
+    .seg button { border: none; background: var(--panel); padding: 0.2rem 0.6rem; font-size: 0.75rem; cursor: pointer; color: var(--muted); }
+    .seg button + button { border-left: 1px solid var(--edge); }
+    .seg button.on { background: var(--grad); color: var(--accent-ink); font-weight: 600; }
+
+    main { display: flex; flex: 1; min-height: 0; padding: 0; }
+    .pane { display: flex; flex-direction: column; min-width: 0; }
+    #editor-pane { flex: 1; border-right: 1px solid var(--edge); padding: 0; }
+    .right { width: 46%; min-width: 300px; }
+    .panehead { display: flex; align-items: center; gap: 0.45rem; padding: 0.35rem 0.7rem; border-bottom: 1px solid var(--edge); background: var(--panel); font-size: 0.72rem; color: var(--muted); }
+    #editor { flex: 1; min-height: 0; }
+    .preview { flex: 1; min-height: 0; overflow: auto; background: var(--bg); }
+    #pv-app { padding: 1.4rem 1.2rem 3rem; max-width: 46rem; margin: 0 auto; }
+    .statusbar { display: flex; gap: 1rem; align-items: center; padding: 0.35rem 0.9rem; border-top: 1px solid var(--edge); background: var(--panel); font: 11.5px ui-monospace, Menlo, monospace; color: var(--muted); }
+    .statusbar .spacer { flex: 1; }
+
+    /* V1 notebook-as-editor: full-width single column of editable cells */
+    #stage.notebook #editor-pane { flex: 1; border-right: none; }
+    #stage.notebook .right { display: none; }
+    #stage.notebook.appview #editor-pane { display: none; }
+    #stage.notebook.appview .right { display: flex; flex: 1; width: auto; }
+    #cells { max-width: 60rem; margin: 0 auto; width: 100%; padding: 1.2rem 1rem 4rem; overflow: auto; }
+    .nbc { border: 1px solid var(--edge); border-radius: 10px; margin: 0.7rem 0; overflow: hidden; background: var(--bg); }
+    .nbc.md { border-style: dashed; }
+    .nbc-head { display: flex; align-items: center; gap: .4rem; padding: .2rem .5rem; background: var(--panel); border-bottom: 1px solid var(--edge); }
+    .nbc.md .nbc-head { border-bottom: none; }
+    .nbc-badge { font-size: .6rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); border: 1px solid var(--edge); border-radius: 5px; padding: .03rem .35rem; }
+    .nbc-run { color: var(--accent); font-weight: 600; font-size: .72rem; background: transparent; border: 1px solid var(--edge); border-radius: 6px; padding: .08rem .45rem; cursor: pointer; }
+    .nbc-run:hover { background: var(--grad); color: var(--accent-ink); border-color: transparent; }
+    .nbc .cell-ed { min-height: 1.4rem; }
+    .nbc .cell-out { padding: .2rem .7rem .5rem; }
+    .nbc .cell-out:empty { display: none; }
+    .nbc .md-view { padding: .55rem .8rem; }
+    .nbc .md-view p:first-child { margin-top: .2rem; }
+    .nb-add { display:flex; gap:.5rem; max-width:60rem; margin: .6rem auto; padding: 0 1rem; }
+    .nb-add button { background: var(--panel); color: var(--muted); border: 1px dashed var(--edge); padding: .35rem .9rem; border-radius: 8px; cursor:pointer; }
+
+    /* V3 output strip */
+    #out-strip { border-top: 1px solid var(--edge); background: var(--panel); max-height: 34%; overflow: auto; }
+    #out-strip .osh { display:flex; align-items:center; gap:.5rem; padding:.3rem .7rem; font-size:.72rem; color:var(--muted); border-bottom:1px solid var(--edge); position:sticky; top:0; background:var(--panel); }
+    #out-strip .orow { display:flex; gap:.6rem; padding:.25rem .7rem; font: 11.5px ui-monospace, Menlo, monospace; border-bottom:1px solid var(--edge); }
+    #out-strip .orow .oc { color: var(--accent); min-width: 3.5rem; }
+    #out-strip .orow .om { white-space: pre-wrap; word-break: break-word; }
+    #out-strip .orow.err .om { color:#d33; }
+
+    /* chooser landing */
+    #chooser { flex:1; overflow:auto; padding: 2rem 1.2rem 4rem; }
+    #chooser .inner { max-width: 60rem; margin: 0 auto; }
+    #chooser h1 { font-size: 1.5rem; margin: .2rem 0 .3rem; }
+    #chooser p.lead { color: var(--muted); margin: 0 0 1.4rem; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
+    .card { border: 1px solid var(--edge); border-radius: 12px; padding: 1rem 1.1rem; text-decoration: none; color: inherit; background: var(--bg); display: block; }
+    .card:hover { border-color: var(--accent); }
+    .card .n { font-size: .7rem; color: var(--accent); font-weight: 700; letter-spacing:.06em; }
+    .card h3 { margin: .3rem 0 .4rem; font-size: 1.05rem; }
+    .card p { margin: 0; font-size: .85rem; color: var(--muted); line-height: 1.5; }
+    .card .tick { margin-top: .6rem; font-size: .78rem; }
+    .card .good { color: var(--metric); } .card .bad { color: #d33; }
+
+    @media (max-width: 860px) {
+      main { flex-direction: column; }
+      #editor-pane, .right { width: auto; flex: none; }
+      #editor-pane { border-right: none; border-bottom: 1px solid var(--edge); }
+      html, body { height: auto; overflow: visible; }
+      #editor { height: 55vh; min-height: 260px; flex: none; }
+      .preview { height: auto; overflow: visible; }
+    }
+  </style>
+</head>
+<body data-v="__V__">
+  <header>
+    <span class="wordmark">numerical<b>.run</b></span>
+    <span class="vbadge" id="vbadge" hidden></span>
+    <span class="tag" id="vname"></span>
+    <span class="spacer"></span>
+    <div class="seg" id="mode-seg" hidden></div>
+    <button id="run-btn" hidden>▶ Run</button>
+    <a class="ghost" id="others" href="./compare.html" hidden>↔ other options</a>
+    <span id="status" class="tag"></span>
+  </header>
+
+  <div id="chooser">
+    <div class="inner">
+      <h1>Consolidating the editor & notebook</h1>
+      <p class="lead">Three ways to remove the redundancy of showing the source twice. Open each, toggle to the app, and get a feel. Same document and kernel underneath.</p>
+      <div class="cards">
+        <a class="card" href="./compare.html?variant=1">
+          <div class="n">OPTION 1</div>
+          <h3>Notebook is the editor</h3>
+          <p>Editable cells (Monaco per code cell) with output inline underneath — one surface that edits, runs, and shows results. App is a separate toggle.</p>
+          <div class="tick"><span class="good">＋</span> no duplicated render; most notebook-native</div>
+          <div class="tick"><span class="bad">−</span> biggest change; no single raw-source view</div>
+        </a>
+        <a class="card" href="./compare.html?variant=2">
+          <div class="n">OPTION 2</div>
+          <h3>Editor + App only</h3>
+          <p>One Monaco editing the whole .nb.md, with the live App preview beside it. The read-only Notebook tab is gone.</p>
+          <div class="tick"><span class="good">＋</span> simplest; source stays one place</div>
+          <div class="tick"><span class="bad">−</span> no per-cell output attribution</div>
+        </a>
+        <a class="card" href="./compare.html?variant=3">
+          <div class="n">OPTION 3</div>
+          <h3>Editor + App + output strip</h3>
+          <p>Monaco + App preview, plus a thin collapsible strip showing each cell's stdout/errors — the debug value of the notebook tab, without re-rendering the source.</p>
+          <div class="tick"><span class="good">＋</span> keeps per-cell feedback, no redundancy</div>
+          <div class="tick"><span class="bad">−</span> a third panel to look at</div>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <main id="stage" hidden>
+    <section class="pane" id="editor-pane">
+      <div class="panehead" id="editor-head">editor</div>
+      <div id="editor"></div>
+      <div id="cells" hidden></div>
+    </section>
+    <section class="pane right">
+      <div class="panehead"><span>preview · app</span></div>
+      <div class="preview"><div id="pv-app"></div></div>
+    </section>
+    <div id="out-strip" hidden></div>
+    <div class="statusbar" id="statusbar" hidden><span id="status2"></span><span class="spacer"></span><span id="dev-time"></span></div>
+  </main>
+
+  <script type="module" src="./compare.js?v=__V__"></script>
+</body>
+</html>
