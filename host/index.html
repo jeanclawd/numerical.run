@@ -24,6 +24,11 @@
     button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--edge); border-radius: 7px; padding: 0.3rem 0.7rem; font-size: 0.82rem; cursor: pointer; }
     button.ghost:hover { color: var(--ink); border-color: var(--accent); }
     select { background: var(--panel); color: var(--ink); border: 1px solid var(--edge); border-radius: 7px; padding: 0.28rem 0.5rem; font-size: 0.82rem; }
+    /* Notebook | App toggle — selected mode carries the blue→purple gradient */
+    .seg { display: inline-flex; border: 1px solid var(--edge); border-radius: 8px; overflow: hidden; }
+    .seg button { border: none; background: var(--panel); padding: 0.32rem 0.85rem; font-size: 0.82rem; cursor: pointer; color: var(--muted); transition: background .15s, color .15s; }
+    .seg button + button { border-left: 1px solid var(--edge); }
+    .seg button.on { background: var(--grad); color: var(--accent-ink); font-weight: 600; }
 
     main { display: flex; flex: 1; min-height: 0; padding: 0; justify-content: flex-start; }
     .pane { display: flex; flex-direction: column; min-width: 0; }
@@ -95,10 +100,12 @@
     <span class="spacer"></span>
     <label class="tag edit-only" for="example">example</label>
     <select id="example" class="edit-only"></select>
+    <div class="seg" id="nav-seg">
+      <button data-nav="edit" id="nav-edit">Notebook</button>
+      <button data-nav="app" id="nav-app">App</button>
+    </div>
     <button id="run-btn" class="edit-only">▶ Run<span class="kbd">⌘⏎</span></button>
     <button id="widgets-btn" class="ghost edit-only" title="Insert a widget">＋ Widgets</button>
-    <button id="view-btn" class="ghost edit-only" title="View as an app">View ▸</button>
-    <button id="edit-btn" class="ghost view-only" title="Edit this document">✎ Edit</button>
     <button id="share-btn" class="ghost" title="Copy a link carrying this document">share</button>
   </header>
 

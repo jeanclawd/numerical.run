@@ -27,7 +27,7 @@ const EXAMPLES = ['waves.nb.md', 'knn.nb.md', 'hello.nb.md'];
 const DEFAULT_DOC = `# numerical.run
 
 A \`.nb.md\` notebook that runs entirely in your browser on the RunMat WASM
-kernel. Edit the cells; hit **Run** (⌘/Ctrl+Enter). *View ▸* renders it as an app.
+kernel. Edit the cells; hit **Run** (⌘/Ctrl+Enter). Toggle **App** to see it rendered.
 
 \`\`\`matlab {jupyter.code-cell}
 f = sl_slider('frequency', 1, 8, 3, 0.5);
@@ -201,6 +201,10 @@ function setStage() {
   document.body.classList.toggle('is-edit', editing);
   q('#modetag').textContent = !editing ? '.nb.md · RunMat · in-browser'
     : (editorMode === 'notebook' ? 'notebook editor' : 'classic editor');
+  // reflect the Notebook|App toggle (gradient on the selected mode)
+  q('#nav-edit').textContent = editorMode === 'classic' ? 'Editor' : 'Notebook';
+  q('#nav-edit').classList.toggle('on', editing);
+  q('#nav-app').classList.toggle('on', !editing);
 }
 async function syncEditors() {
   if (editing && editorMode === 'classic') await ensureBlob();
@@ -262,8 +266,8 @@ function wire() {
   for (const e of EXAMPLES) { const o = document.createElement('option'); o.value = e; o.textContent = e.replace('.nb.md', ''); sel.appendChild(o); }
   sel.addEventListener('change', async () => { loadText(await (await fetch(`./examples/${sel.value}?v=${V}`)).text()); });
   q('#run-btn').addEventListener('click', () => loadText(currentSource()));
-  q('#edit-btn').addEventListener('click', () => setEditing(true));
-  q('#view-btn').addEventListener('click', () => setEditing(false));
+  q('#nav-edit').addEventListener('click', () => setEditing(true));
+  q('#nav-app').addEventListener('click', () => setEditing(false));
   q('#widgets-btn').addEventListener('click', () => { const p = q('#palette'); p.hidden = !p.hidden; });
   q('#palette-close').addEventListener('click', () => { q('#palette').hidden = true; });
   q('#share-btn').addEventListener('click', async () => { const url = shareLink(); try { await navigator.clipboard.writeText(url); status(`link copied (${url.length} chars)`); } catch { prompt('share link:', url); } });
