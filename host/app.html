@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>numerical.run · app</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/numerical/style.css?v=__V__">
+  <style>
+    body { margin: 0; background: var(--bg); color: var(--ink); min-height: 100vh; }
+    .bar { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 1rem; border-bottom: 1px solid var(--edge); background: var(--panel); font-size: 0.78rem; }
+    .bar .wordmark { font-weight: 600; }
+    .bar .wordmark b { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 800; }
+    .bar .spacer { flex: 1; }
+    .bar a { color: var(--accent); text-decoration: none; }
+    #app { max-width: 46rem; margin: 0 auto; padding: 1.6rem 1.1rem 3rem; }
+    .boot-note { color: var(--muted); font-size: 0.85rem; padding: 2rem 1rem; }
+    #status { color: var(--muted); font: 11.5px ui-monospace, Menlo, monospace; }
+  </style>
+</head>
+<body data-v="__V__">
+  <div class="bar">
+    <span class="wordmark">numerical<b>.run</b></span>
+    <span class="spacer"></span>
+    <span id="status">loading…</span>
+    <a id="edit-link" href="#" title="Open this document in the dev editor">edit ↗</a>
+  </div>
+  <div id="app"><div class="boot-note">loading the RunMat runtime (52&nbsp;MB, cached after the first visit)…</div></div>
+  <script type="module" src="/numerical/player.js?v=__V__"></script>
+</body>
+</html>

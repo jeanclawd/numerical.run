@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>numerical.run · dev</title>
+  <link rel="icon" href="data:,">
+  <!-- reuse the app's sl-* styles for the live preview -->
+  <link rel="stylesheet" href="/numerical/style.css?v=__V__">
+  <style>
+    html, body { height: 100%; margin: 0; overflow: hidden; }
+    body { display: flex; flex-direction: column; background: var(--bg); color: var(--ink); }
+    header {
+      display: flex; align-items: center; gap: 0.6rem 0.9rem; padding: 0.55rem 1rem;
+      border-bottom: 1px solid var(--edge); background: var(--panel); flex: none; flex-wrap: wrap;
+      position: relative;
+    }
+    header::after { content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:var(--grad); opacity:.9; }
+    .wordmark { font-weight: 600; }
+    .wordmark b { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 800; }
+    .tag { font-size: 0.72rem; color: var(--muted); }
+    header .spacer { flex: 1; }
+    #dev-run { background: var(--grad); color: var(--accent-ink); border: none; font-weight: 600; padding: 0.35rem 0.9rem; border-radius: 7px; cursor: pointer; }
+    #dev-run:hover { filter: brightness(1.07); }
+    header .kbd { font: 11px var(--mono, ui-monospace, Menlo, monospace); color: var(--accent-ink); opacity: .8; margin-left: 0.4rem; }
+
+    main { display: flex; flex: 1; min-height: 0; }
+    .pane { display: flex; flex-direction: column; min-width: 0; }
+    .left { flex: 1; border-right: 1px solid var(--edge); }
+    .right { width: 46%; min-width: 320px; }
+    .panehead { display: flex; align-items: center; gap: 0.4rem; padding: 0.35rem 0.7rem; border-bottom: 1px solid var(--edge); background: var(--panel); font-size: 0.72rem; color: var(--muted); }
+    #editor { flex: 1; min-height: 0; }
+    .seg { display: inline-flex; border: 1px solid var(--edge); border-radius: 7px; overflow: hidden; }
+    .seg button { border: none; background: var(--panel); padding: 0.2rem 0.6rem; font-size: 0.75rem; cursor: pointer; color: var(--muted); }
+    .seg button + button { border-left: 1px solid var(--edge); }
+    .seg button.on { background: var(--grad); color: var(--accent-ink); font-weight: 600; }
+    .preview { flex: 1; min-height: 0; overflow: auto; background: var(--bg); }
+    .view { display: none; }
+    .view.on { display: block; }
+    #pv-app { padding: 1.4rem 1.2rem 3rem; max-width: 46rem; margin: 0 auto; }
+    #pv-nb  { padding: 1rem 1rem 3rem; }
+    .statusbar { display: flex; gap: 1rem; align-items: center; padding: 0.35rem 0.9rem; border-top: 1px solid var(--edge); background: var(--panel); font: 11.5px ui-monospace, Menlo, monospace; color: var(--muted); }
+    .statusbar .spacer { flex: 1; }
+    /* notebook preview cells (read-only; edit in Monaco) */
+    .pv-cell { border: 1px solid var(--edge); border-radius: 9px; margin: 0.6rem 0; overflow: hidden; }
+    .pv-cell.md { border-style: dashed; padding: 0.5rem 0.8rem; }
+    .pv-code pre { margin: 0; padding: 0.55rem 0.75rem; font: 12px/1.5 ui-monospace, Menlo, monospace; background: var(--panel); border-bottom: 1px solid var(--edge); white-space: pre-wrap; overflow-x: auto; }
+    .pv-out { padding: 0.2rem 0.75rem 0.5rem; }
+    .pv-out:empty { display: none; }
+    .pv-cell .md p:first-child { margin-top: 0; }
+    ghost, button.ghost { }
+    button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--edge); border-radius: 7px; padding: 0.28rem 0.7rem; font-size: 0.78rem; cursor: pointer; }
+    button.ghost:hover { color: var(--ink); border-color: var(--accent); }
+    select { background: var(--panel); color: var(--ink); border: 1px solid var(--edge); border-radius: 7px; padding: 0.28rem 0.5rem; font-size: 0.78rem; }
+    @media (max-width: 860px) {
+      main { flex-direction: column; }
+      .left, .right { width: auto; flex: 1 1 0; min-width: 0; }
+      .left { border-right: none; border-bottom: 1px solid var(--edge); }
+      #editor { min-height: 200px; }
+      .preview { min-height: 200px; }
+      header .tag { display: none; }
+    }
+  </style>
+</head>
+<body data-v="__V__">
+  <header>
+    <span class="wordmark">numerical<b>.run</b></span>
+    <span class="tag">dev · Monaco · .nb.md · in-browser</span>
+    <span class="spacer"></span>
+    <label class="tag" for="dev-example">example</label>
+    <select id="dev-example"></select>
+    <button class="ghost" id="dev-openapp" title="Open the current document as an app (/app link)">Open as app ↗</button>
+    <button class="ghost" id="dev-share" title="Copy an /app link carrying this document">share</button>
+    <button id="dev-run">▶ Run<span class="kbd">⌘⏎</span></button>
+  </header>
+  <main>
+    <section class="pane left">
+      <div class="panehead">editor · <span style="color:var(--accent)">.nb.md</span> — edit freely, Run to render</div>
+      <div id="editor"></div>
+    </section>
+    <section class="pane right">
+      <div class="panehead">
+        <div class="seg" id="pv-mode">
+          <button data-view="app" class="on">App</button>
+          <button data-view="nb">Notebook</button>
+        </div>
+        <span class="spacer" style="flex:1"></span>
+        <span>preview</span>
+      </div>
+      <div class="preview">
+        <div id="pv-app" class="view on"></div>
+        <div id="pv-nb" class="view"></div>
+      </div>
+      <div class="statusbar">
+        <span id="dev-status">booting runtime…</span>
+        <span class="spacer"></span>
+        <span id="dev-time"></span>
+      </div>
+    </section>
+  </main>
+
+  <script src="/numerical/monaco/vs/loader.js"></script>
+  <script type="module" src="/numerical/dev.js?v=__V__"></script>
+</body>
+</html>

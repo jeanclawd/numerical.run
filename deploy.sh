@@ -6,16 +6,26 @@ set -euo pipefail
 SRC="$(cd "$(dirname "$0")" && pwd)/host"
 DEST=/opt/sites/numerical
 RUNTIME_SRC=/opt/sites/streamlab/runtime
+MONACO_SRC=/opt/zoetrope-playground/static/monaco
 V="$(date +%Y%m%d%H%M%S)"
 
 mkdir -p "$DEST/examples" "$DEST/runtime"
 
-# app code (version-stamp index.html so Cloudflare can't serve a stale mix)
-sed "s/__V__/$V/g" "$SRC/index.html" > "$DEST/index.html"
-cp "$SRC/app.js" "$SRC/kernel.js" "$SRC/nbmd.js" "$SRC/md.js" "$SRC/render.js" "$DEST/"
+# HTML pages (version-stamp __V__ so Cloudflare can't serve a stale mix)
+for page in index.html dev.html app.html; do
+  sed "s/__V__/$V/g" "$SRC/$page" > "$DEST/$page"
+done
+cp "$SRC/app.js" "$SRC/dev.js" "$SRC/player.js" "$SRC/kernel.js" "$SRC/nbmd.js" "$SRC/md.js" "$SRC/render.js" "$DEST/"
 cp "$SRC/style.css" "$DEST/"
 cp "$SRC/lib.m" "$DEST/lib.m"
 cp "$SRC"/examples/*.nb.md "$DEST/examples/"
+
+# Monaco editor (vendored; shared with the zoetrope playground). Only copy if
+# missing or stale, since it's a few MB of many files.
+if [ ! -d "$DEST/monaco/vs" ]; then
+  echo "vendoring Monaco from $MONACO_SRC …"
+  cp -r "$MONACO_SRC" "$DEST/monaco"
+fi
 
 # RunMat WASM runtime + figrender (shared with streamlab)
 cp "$RUNTIME_SRC/runmat_wasm_web.js" "$RUNTIME_SRC/runmat_wasm_web_bg.wasm" "$DEST/runtime/"
