@@ -186,7 +186,7 @@ function cellNode(cell) {
     ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => runCellById(cell));
     requestAnimationFrame(() => autoHeight(ed, edEl));
     const out = document.createElement('div'); out.className = 'cell-out'; out.dataset.cellOut = cell.id; box.appendChild(out);
-    const els = lastByCell.get(doc.cells.indexOf(cell)) ?? []; if (els.length) kernel.renderElements(out, els, cellSetState(cell));
+    const els = cellElements(cell); if (els.length) kernel.renderElements(out, els, cellSetState(cell));
   } else if (mdEditing.has(cell.id)) {
     // text cell open in an editor (freshly inserted, or after tapping ✎ Edit)
     const doneBtn = document.createElement('button'); doneBtn.className = 'nbc-btn'; doneBtn.textContent = '✓ Done';
@@ -211,7 +211,11 @@ function cellNode(cell) {
   return box;
 }
 function runCellById(cell) { status('running cell…'); kernel.runCell(cell).then((els) => { lastByCell.set(doc.cells.indexOf(cell), els); updateCellOut(cell); status('ran cell'); }); }
-function updateCellOut(cell) { const out = document.querySelector(`[data-cell-out="${cell.id}"]`); if (!out) return; out.innerHTML = ''; const els = lastByCell.get(doc.cells.indexOf(cell)) ?? []; if (els.length) kernel.renderElements(out, els, cellSetState(cell)); }
+// Per-cell output renders INLINE — drop sl_sidebar/sl_main region routing, which
+// only makes sense for the whole-app view (a full-height sticky sidebar inside a
+// single cell's output looks broken).
+function cellElements(cell) { return (lastByCell.get(doc.cells.indexOf(cell)) ?? []).filter((e) => e.type !== 'region'); }
+function updateCellOut(cell) { const out = document.querySelector(`[data-cell-out="${cell.id}"]`); if (!out) return; out.innerHTML = ''; const els = cellElements(cell); if (els.length) kernel.renderElements(out, els, cellSetState(cell)); }
 function renderCellsOutputs() { doc.cells.forEach((cell) => { if (cell.kind === 'code') updateCellOut(cell); }); }
 
 // ---------------------------------------------------------------- mode / layout
