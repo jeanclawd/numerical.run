@@ -9,6 +9,7 @@ RunMat WASM kernel.
 Controls — drag the sliders in App mode, or run this cell and interact inline.
 
 ```matlab {jupyter.code-cell}
+nr_demo('Wave explorer', 'Damped sine / cosine / pulse with live controls');
 n    = nr_slider('points', 20, 600, 200, 10);
 f    = nr_slider('frequency', 1, 8, 2, 0.5);
 damp = nr_slider('damping', 0, 1, 0.3, 0.05);

@@ -24,5 +24,7 @@ sed -e "s|__V__|$V|g" \
 cp host/app.js host/kernel.js host/nbmd.js host/md.js host/render.js host/style.css host/lib.m host/favicon.svg "$DEST/"
 cp host/figrender.mjs "$DEST/runtime/figrender.mjs"
 cp host/examples/*.nb.md "$DEST/examples/"
+[ -f host/gallery.json ] && cp host/gallery.json "$DEST/"
+[ -d host/thumbs ] && mkdir -p "$DEST/thumbs" && cp host/thumbs/*.png "$DEST/thumbs/" 2>/dev/null || true
 
 echo "built numerical.run SPA v$V -> $DEST (runtime+monaco via jsDelivr)"

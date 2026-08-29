@@ -23,7 +23,7 @@ const status = (t) => { const s = q('#status2'); if (s) s.textContent = t; };
 const b64encode = (s) => btoa(String.fromCharCode(...new TextEncoder().encode(s)));
 const b64decode = (s) => new TextDecoder().decode(Uint8Array.from(atob(s), (c) => c.charCodeAt(0)));
 
-const EXAMPLES = ['waves.nb.md', 'mel-spectrogram.nb.md', 'knn.nb.md', 'hello.nb.md'];
+const EXAMPLES = ['waves.nb.md', 'signal.nb.md', 'knn.nb.md', 'hello.nb.md'];
 const DEFAULT_DOC = `# numerical.run
 
 A \`.nb.md\` notebook that runs entirely in your browser on the RunMat WASM
@@ -61,9 +61,14 @@ const counters = {};
 
 // ---------------------------------------------------------------- run + render
 function currentSource() { return editing && editorMode === 'notebook' ? serializeNbMd(doc) : (blobEditor ? blobEditor.getValue() : source); }
+let demoMeta = null;   // {title, description} from nr_demo() in the last run
+function captureDemoMeta(byCell) {
+  demoMeta = null;
+  for (const els of byCell.values()) for (const e of els) if (e.type === 'demo') demoMeta = { title: e.title, description: e.description };
+}
 function runAll() {
   status('running…'); const t0 = performance.now();
-  kernel.runAll(doc.cells).then((byCell) => { lastByCell = byCell; const e = q('#dev-time'); if (e) e.textContent = `${Math.round(performance.now() - t0)} ms`; status('ran'); render(); });
+  kernel.runAll(doc.cells).then((byCell) => { lastByCell = byCell; captureDemoMeta(byCell); const e = q('#dev-time'); if (e) e.textContent = `${Math.round(performance.now() - t0)} ms`; status('ran'); render(); });
 }
 function loadText(text) { source = text; doc = parseNbMd(text); syncEditors(); runAll(); }
 function render() { (editing && editorMode === 'notebook') ? renderCellsOutputs() : renderApp(); }
@@ -308,10 +313,37 @@ function showLinkToast(url) {
 
 // ---------------------------------------------------------------- shell wiring
 function shareLink() { return `${location.origin}${location.pathname}#code=${b64encode(currentSource())}`; }
+// ---------------------------------------------------------------- gallery
+async function loadExample(name) { loadText(await (await fetch(`./examples/${name}?v=${V}`)).text()); }
+const openGallery = () => { q('#gallery').hidden = false; };
+const closeGallery = () => { q('#gallery').hidden = true; };
+async function buildGallery() {
+  let items = [];
+  try { items = await (await fetch(`./gallery.json?v=${V}`)).json(); } catch { items = EXAMPLES.map((f) => ({ file: f, title: f.replace('.nb.md', ''), description: '', thumb: null })); }
+  const grid = q('#gallery-grid'); grid.innerHTML = '';
+  const card = (thumbHTML, title, desc, onClick) => {
+    const c = document.createElement('button'); c.className = 'gal-card'; c.innerHTML = thumbHTML;
+    const m = document.createElement('div'); m.className = 'gal-meta';
+    const h = document.createElement('h3'); h.textContent = title; const p = document.createElement('p'); p.textContent = desc;
+    m.append(h, p); c.appendChild(m); c.addEventListener('click', onClick); return c;
+  };
+  for (const d of items) {
+    const thumb = d.thumb
+      ? `<img class="gal-thumb" src="./${d.thumb}?v=${V}" alt="">`
+      : `<div class="gal-thumb ph">${(d.title || '?').slice(0, 1)}</div>`;
+    grid.appendChild(card(thumb, d.title || d.file, d.description || '', () => { closeGallery(); loadExample(d.file); }));
+  }
+  grid.appendChild(card(`<div class="gal-thumb ph">+</div>`, 'Blank notebook', 'Start from scratch', () => { closeGallery(); loadText(DEFAULT_DOC); }));
+}
+
 function wire() {
   const sel = q('#example');
   for (const e of EXAMPLES) { const o = document.createElement('option'); o.value = e; o.textContent = e.replace('.nb.md', ''); sel.appendChild(o); }
   sel.addEventListener('change', async () => { loadText(await (await fetch(`./examples/${sel.value}?v=${V}`)).text()); });
+  q('#gallery-btn').addEventListener('click', openGallery);
+  q('#gal-close').addEventListener('click', closeGallery);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !q('#gallery').hidden) closeGallery(); });
+  buildGallery();
   q('#run-btn').addEventListener('click', () => loadText(currentSource()));
   q('#nav-edit').addEventListener('click', () => setEditing(true));
   q('#nav-app').addEventListener('click', () => setEditing(false));
@@ -358,6 +390,8 @@ async function boot() {
   setStage(); updateURL();
   await syncEditors();
   runAll();
+  // First-run onboarding: a bare URL opens the demo gallery over a default doc.
+  if (!hasDoc && !wantEdit) openGallery();
 }
 await boot();
-window.__numerical = { get source() { return currentSource(); }, setEditing };
+window.__numerical = { get source() { return currentSource(); }, setEditing, get demo() { return demoMeta; } };
