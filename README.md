@@ -1,4 +1,8 @@
-# numerical.run
+<p align="center">
+  <img src="docs/logo.png" alt="numerical.run" width="96">
+</p>
+
+<h1 align="center">numerical.run</h1>
 
 One `.nb.md` document, two modes — a **notebook** for building and an **app**
 for using — running on a single [RunMat](https://github.com/dystr/runmat)
