@@ -169,15 +169,22 @@ function cellNode(cell) {
     const out = document.createElement('div'); out.className = 'cell-out'; out.dataset.cellOut = cell.id; box.appendChild(out);
     const els = lastByCell.get(doc.cells.indexOf(cell)) ?? []; if (els.length) kernel.renderElements(out, els, cellSetState(cell));
   } else {
-    const view = document.createElement('div'); view.className = 'md-view'; view.innerHTML = mdToHtml(cell.source); view.title = 'double-click to edit';
-    view.addEventListener('dblclick', () => {
+    const view = document.createElement('div'); view.className = 'md-view';
+    view.innerHTML = mdToHtml(cell.source) || '<span class="nbc-badge">empty text cell — tap ✎ Edit</span>';
+    view.title = 'double-click to edit';
+    const enterEdit = () => {
+      if (box.querySelector('.cell-ed')) return;              // already editing
       const edEl = document.createElement('div'); edEl.className = 'cell-ed'; box.replaceChild(edEl, view);
       const ed = monaco.editor.create(edEl, { value: cell.source, ...CELL_OPTS });
       requestAnimationFrame(() => { autoHeight(ed, edEl); ed.focus(); });
       ed.onDidChangeModelContent(() => { cell.source = ed.getValue(); });
       ed.onDidContentSizeChange(() => autoHeight(ed, edEl));
-      ed.onDidBlurEditorWidget(() => { renderCells(); });
-    });
+      ed.onDidBlurEditorWidget(() => renderCells());
+    };
+    view.addEventListener('dblclick', enterEdit);
+    // explicit affordance (double-click doesn't exist on touch)
+    const editBtn = document.createElement('button'); editBtn.className = 'nbc-run'; editBtn.textContent = '✎ Edit'; editBtn.onclick = enterEdit;
+    head.insertBefore(editBtn, head.firstChild);
     box.appendChild(view);
   }
   return box;
