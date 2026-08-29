@@ -18,7 +18,7 @@ sed -e "s|__V__|$V|g" \
     -e "s|__MONACO__|/numerical/monaco|g" \
     "$SRC/index.html" > "$DEST/index.html"
 cp "$SRC/app.js" "$SRC/kernel.js" "$SRC/nbmd.js" "$SRC/md.js" "$SRC/render.js" "$DEST/"
-cp "$SRC/style.css" "$DEST/"
+cp "$SRC/style.css" "$SRC/favicon.svg" "$DEST/"
 cp "$SRC/lib.m" "$DEST/lib.m"
 cp "$SRC"/examples/*.nb.md "$DEST/examples/"
 
