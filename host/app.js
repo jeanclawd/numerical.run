@@ -41,6 +41,7 @@ nr_metric('frequency', f, '%g');
 const { createKernel } = await import(`./kernel.js?v=${V}`);
 const { parseNbMd, serializeNbMd, newCell } = await import(`./nbmd.js?v=${V}`);
 const { mdToHtml } = await import(`./md.js?v=${V}`);
+const { toNbMd } = await import(`./importers.js?v=${V}`);
 const kernel = await createKernel({
   statusEl: q('#status2'), runtimeUrl: RUNTIME, figrenderUrl: `${FIGR}?v=${V}`,
   renderUrl: `./render.js?v=${V}`, library: await (await fetch(`./lib.m?v=${V}`)).text(),
@@ -259,9 +260,9 @@ async function fetchGist(ref) {
   const id = ref.split('/').pop();
   const r = await fetch(`https://api.github.com/gists/${id}`); if (!r.ok) throw new Error(`gist API HTTP ${r.status}`);
   const files = Object.values((await r.json()).files || {}); if (!files.length) throw new Error('gist has no files');
-  const pick = files.find((f) => /\.nb\.md$/.test(f.filename)) || files.find((f) => /\.md$/.test(f.filename)) || files.find((f) => /\.m$/.test(f.filename)) || files[0];
-  if (pick.truncated && pick.raw_url) return await (await fetch(pick.raw_url)).text();
-  return pick.content;
+  const pick = files.find((f) => /\.nb\.md$/.test(f.filename)) || files.find((f) => /\.(md|ipynb|qmd|rmd|m)$/i.test(f.filename)) || files[0];
+  const content = (pick.truncated && pick.raw_url) ? await (await fetch(pick.raw_url)).text() : pick.content;
+  return toNbMd(content, pick.filename);   // convert foreign formats to .nb.md
 }
 
 // ---------------------------------------------------------------- WYSIWYG palette
@@ -357,7 +358,7 @@ async function boot() {
   try {
     if (code) source = b64decode(code);
     else if (gist) source = await fetchGist(gist);
-    else if (docUrl && /^(https?:\/\/|\.?\/?examples\/|thumbs\/)/i.test(docUrl)) source = await fetchDoc(docUrl);
+    else if (docUrl && /^(https?:\/\/|[\w./-]+\.(nb\.md|ipynb|qmd|rmd|md|m))$/i.test(docUrl)) source = toNbMd(await fetchDoc(docUrl), docUrl);
     else if (blank) source = DEFAULT_DOC;
     else { source = await fetchDoc(`./examples/gallery.nb.md?v=${V}`); isGallery = true; }   // bare URL → the gallery notebook
   } catch (e) { source = DEFAULT_DOC; status(`bad source: ${e.message}`); }

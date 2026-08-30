@@ -21,7 +21,7 @@ sed -e "s|__V__|$V|g" \
     -e "s|__MONACO__|$MONACO|g" \
     host/index.html > "$DEST/index.html"
 
-cp host/app.js host/kernel.js host/nbmd.js host/md.js host/render.js host/style.css host/lib.m host/favicon.svg "$DEST/"
+cp host/app.js host/kernel.js host/nbmd.js host/md.js host/render.js host/importers.js host/style.css host/lib.m host/favicon.svg "$DEST/"
 cp host/figrender.mjs "$DEST/runtime/figrender.mjs"
 cp host/examples/*.nb.md "$DEST/examples/"
 [ -d host/thumbs ] && mkdir -p "$DEST/thumbs" && cp host/thumbs/*.png "$DEST/thumbs/" 2>/dev/null || true
