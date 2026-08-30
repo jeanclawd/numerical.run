@@ -33,3 +33,11 @@ k-nearest-neighbours on two interleaved classes, with a sidebar of controls.
 ### [Hello →](?doc=examples/hello.nb.md)
 
 Inputs, session state, and a button — the basics.
+
++++
+
+### [The classic editor →](?doc=examples/classic-editor.nb.md)
+
+[![The classic editor](thumbs/classic-editor.png)](?doc=examples/classic-editor.nb.md)
+
+The two editing modes — the cell-by-cell notebook and the whole-document classic editor.

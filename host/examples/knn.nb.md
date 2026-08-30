@@ -35,7 +35,7 @@ for i = 1:numel(yte)
     [~, order] = sort(D(i, :));
     yhat(i) = mode(ytr(order(1:k)));
 end
-good = double(gather(yhat)) == yte;
+good = abs(double(gather(yhat)) - yte) < 0.5;   % class match (== on tensors is flaky on RunMat 0.6.2)
 
 prev = nr_state('prev accuracy', mean(good));
 nr_state_set('prev accuracy', mean(good));

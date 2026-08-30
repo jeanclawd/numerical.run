@@ -8,7 +8,7 @@ set -euo pipefail
 
 DEST=dist
 V="$(date +%Y%m%d%H%M%S)"
-RUNTIME="https://cdn.jsdelivr.net/npm/runmat@0.6.1/dist/pkg-web"      # runmat_wasm_web.js + _bg.wasm
+RUNTIME="https://unpkg.com/runmat@0.6.2/dist/pkg-web"      # runmat_wasm_web.js + _bg.wasm
 MONACO="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min"        # dir containing vs/
 FIGR="/runtime/figrender.mjs"                                         # served locally (repo file)
 

@@ -28,7 +28,7 @@ const MARKER = '%%NR%%';
 export async function createKernel({ statusEl = null, runtimeUrl, figrenderUrl, renderUrl, library }) {
   const status = (t) => { if (statusEl) statusEl.textContent = t; };
 
-  const ver = (runtimeUrl.match(/runmat@([\d.]+)/) || [, '0.6.1'])[1];   // from the CDN url, else the pinned version
+  const ver = (runtimeUrl.match(/runmat@([\d.]+)/) || [, '0.6.2'])[1];   // from the CDN url, else the pinned version
   status(`loading RunMat ${ver} runtime…`);
   const base = runtimeUrl.replace(/\/$/, '');
   const { renderFigureScene } = await import(/* @vite-ignore */ figrenderUrl);
