@@ -15,8 +15,8 @@
     header { display: flex; align-items: center; gap: 0.5rem 0.85rem; padding: 0.55rem 1rem; border-bottom: 1px solid var(--edge); background: var(--panel); flex: none; flex-wrap: wrap; position: relative; }
     header::after { content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:var(--grad); opacity:.9; }
     .wordmark { font-weight: 600; display: inline-flex; align-items: center; gap: .45rem; text-decoration: none; color: var(--ink); }
-    /* thumbnails in a gallery/prose notebook */
-    #pv-app .nr-text img, .nbc .md img { max-width: 380px; width: 100%; border: 1px solid var(--edge); border-radius: 10px; display: block; margin: .5rem 0; }
+    /* thumbnails in a gallery/prose notebook — modest, and smaller on phones */
+    #pv-app .nr-text img, .nbc .md-view img { width: 100%; max-width: min(300px, 62vw); height: auto; border: 1px solid var(--edge); border-radius: 10px; display: block; margin: .5rem 0; }
     #pv-app .nr-text a:has(img) { display: inline-block; }
     .wordmark .logo { height: 1.45em; width: auto; display: block; }
     .wordmark b { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 800; }
