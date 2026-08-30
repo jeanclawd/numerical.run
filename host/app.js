@@ -223,8 +223,6 @@ function setStage() {
   const stage = q('#stage');
   stage.className = !editing ? 'view' : editorMode;      // 'view' | 'classic' | 'notebook'
   document.body.classList.toggle('is-edit', editing);
-  q('#modetag').textContent = !editing ? '.nb.md · RunMat · in-browser'
-    : (editorMode === 'notebook' ? 'notebook editor' : 'classic editor');
   // reflect the Notebook|App toggle (gradient on the selected mode)
   q('#nav-edit').textContent = editorMode === 'classic' ? 'Editor' : 'Notebook';
   q('#nav-edit').classList.toggle('on', editing);

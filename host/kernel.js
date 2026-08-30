@@ -28,7 +28,8 @@ const MARKER = '%%NR%%';
 export async function createKernel({ statusEl = null, runtimeUrl, figrenderUrl, renderUrl, library }) {
   const status = (t) => { if (statusEl) statusEl.textContent = t; };
 
-  status('loading runtime…');
+  const ver = (runtimeUrl.match(/runmat@([\d.]+)/) || [, '0.6.1'])[1];   // from the CDN url, else the pinned version
+  status(`loading RunMat ${ver} runtime…`);
   const base = runtimeUrl.replace(/\/$/, '');
   const { renderFigureScene } = await import(/* @vite-ignore */ figrenderUrl);
   const { renderElements } = await import(/* @vite-ignore */ renderUrl ?? new URL('./render.js', import.meta.url).href);
@@ -43,7 +44,7 @@ export async function createKernel({ statusEl = null, runtimeUrl, figrenderUrl, 
   try {
     await web.subscribeStdout((e) => { if (streaming) streamBuf += e.text ?? ''; });
   } catch { /* markers still arrive via result.stdout on some builds */ }
-  status('runtime ready');
+  status(`RunMat ${ver} ready`);
 
   // ---------------------------------------------------------------- state
   const state = new Map();      // widget label -> value
