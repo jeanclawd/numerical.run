@@ -65,6 +65,7 @@ let demoMeta = null;   // {title, description} from nr_demo() in the last run
 function captureDemoMeta(byCell) {
   demoMeta = null;
   for (const els of byCell.values()) for (const e of els) if (e.type === 'demo') demoMeta = { title: e.title, description: e.description };
+  document.title = demoMeta?.title ? `${demoMeta.title} · numerical.run` : 'numerical.run';
 }
 function runAll() {
   status('running…'); const t0 = performance.now();

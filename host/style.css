@@ -425,3 +425,8 @@ main:has(#app:not([hidden]) .has-sidebar) { }   /* app sidebar handled by base s
 /* heatmap (nr_heatmap) — a plasma-colored canvas scaled to the column width */
 .nr-heatmap canvas { width: 100%; height: auto; display: block; border: 1px solid var(--edge); border-radius: 8px; }
 .nr-heatmap { margin: 0.8rem 0; }
+
+/* nr_demo() header — a notebook/demo title + description */
+.nr-demo-head { margin: .2rem 0 1.1rem; padding-bottom: .6rem; border-bottom: 1px solid var(--edge); }
+.nr-demo-title { font-size: 1.7rem; font-weight: 800; letter-spacing: -.01em; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.nr-demo-desc { color: var(--muted); margin-top: .2rem; font-size: .95rem; }
