@@ -61,9 +61,14 @@ const counters = {};
 
 // ---------------------------------------------------------------- run + render
 function currentSource() { return editing && editorMode === 'notebook' ? serializeNbMd(doc) : (blobEditor ? blobEditor.getValue() : source); }
+let demoMeta = null;   // {title, description} from nr_demo() in the last run
+function captureDemoMeta(byCell) {
+  demoMeta = null;
+  for (const els of byCell.values()) for (const e of els) if (e.type === 'demo') demoMeta = { title: e.title, description: e.description };
+}
 function runAll() {
   status('running…'); const t0 = performance.now();
-  kernel.runAll(doc.cells).then((byCell) => { lastByCell = byCell; const e = q('#dev-time'); if (e) e.textContent = `${Math.round(performance.now() - t0)} ms`; status('ran'); render(); });
+  kernel.runAll(doc.cells).then((byCell) => { lastByCell = byCell; captureDemoMeta(byCell); const e = q('#dev-time'); if (e) e.textContent = `${Math.round(performance.now() - t0)} ms`; status('ran'); render(); });
 }
 function loadText(text) { source = text; doc = parseNbMd(text); syncEditors(); runAll(); }
 function render() { (editing && editorMode === 'notebook') ? renderCellsOutputs() : renderApp(); }
@@ -308,10 +313,12 @@ function showLinkToast(url) {
 
 // ---------------------------------------------------------------- shell wiring
 function shareLink() { return `${location.origin}${location.pathname}#code=${b64encode(currentSource())}`; }
+// ---------------------------------------------------------------- shell wiring
+// Load a notebook from a URL (relative to the app, or absolute) — the mechanism
+// the gallery notebook uses to link to the other notebooks.
+async function fetchDoc(url) { const r = await fetch(url); if (!r.ok) throw new Error(`HTTP ${r.status}`); return await r.text(); }
+
 function wire() {
-  const sel = q('#example');
-  for (const e of EXAMPLES) { const o = document.createElement('option'); o.value = e; o.textContent = e.replace('.nb.md', ''); sel.appendChild(o); }
-  sel.addEventListener('change', async () => { loadText(await (await fetch(`./examples/${sel.value}?v=${V}`)).text()); });
   q('#run-btn').addEventListener('click', () => loadText(currentSource()));
   q('#nav-edit').addEventListener('click', () => setEditing(true));
   q('#nav-app').addEventListener('click', () => setEditing(false));
@@ -344,20 +351,25 @@ async function boot() {
   const wantEdit = hash.has('edit') || params.has('edit');
   const code = hash.get('code') || params.get('code');
   const gist = hash.get('gist') || params.get('gist');
+  const docUrl = hash.get('doc') || params.get('doc');   // load a notebook by URL
+  const blank = params.has('new');
+  let isGallery = false;
   try {
     if (code) source = b64decode(code);
     else if (gist) source = await fetchGist(gist);
-    else source = DEFAULT_DOC;
+    else if (docUrl && /^(https?:\/\/|\.?\/?examples\/|thumbs\/)/i.test(docUrl)) source = await fetchDoc(docUrl);
+    else if (blank) source = DEFAULT_DOC;
+    else { source = await fetchDoc(`./examples/gallery.nb.md?v=${V}`); isGallery = true; }   // bare URL → the gallery notebook
   } catch (e) { source = DEFAULT_DOC; status(`bad source: ${e.message}`); }
-  const hasDoc = !!(code || gist);
+  const shared = !!(code || gist || docUrl);
 
   doc = parseNbMd(source);
-  // a bare URL (authoring a new doc) opens in the editor; a shared doc opens as
-  // the App unless ?edit is present.
-  editing = wantEdit || !hasDoc;
+  // The gallery + shared docs open as the rendered App (links clickable); a blank
+  // notebook opens in the editor. ?edit always forces the editor.
+  editing = wantEdit || (!shared && !isGallery);
   setStage(); updateURL();
   await syncEditors();
   runAll();
 }
 await boot();
-window.__numerical = { get source() { return currentSource(); }, setEditing };
+window.__numerical = { get source() { return currentSource(); }, setEditing, get demo() { return demoMeta; } };

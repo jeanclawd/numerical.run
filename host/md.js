@@ -8,13 +8,18 @@ function esc(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// Only these href/src schemes are allowed — blocks javascript:/data: etc. so
+// arbitrary shared markdown can't inject a dangerous link.
+const SAFE = /^(https?:\/\/|\/|\.\/|\?|#|thumbs\/|examples\/)/i;
+const attr = (s) => s.replace(/"/g, '%22');
 function inline(s) {
   return esc(s)
     .replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`)
+    .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (m, alt, src) => SAFE.test(src) ? `<img alt="${attr(alt)}" src="${attr(src)}">` : m)
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>')
-    .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g,
-      '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, t, href) =>
+      SAFE.test(href) ? `<a href="${attr(href)}"${/^https?:/i.test(href) ? ' target="_blank" rel="noopener"' : ''}>${t}</a>` : m);
 }
 
 export function mdToHtml(src) {

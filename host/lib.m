@@ -59,6 +59,17 @@ end
 
 % ---- static elements --------------------------------------------------------
 
+function nr_demo(title, varargin)
+% nr_demo(title [, description]) — gallery metadata for this notebook. Emits an
+% invisible marker the host reads to build the demo gallery (title, description);
+% the demo's first figure/heatmap becomes its thumbnail.
+    s = struct('type', 'demo', 'title', title);
+    if nargin >= 2
+        s.description = varargin{1};
+    end
+    nr_emit_(s);
+end
+
 function nr_title(text)
     nr_emit_(struct('type', 'title', 'text', text));
 end
