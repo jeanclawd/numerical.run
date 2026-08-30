@@ -229,6 +229,8 @@ function setStage() {
   q('#nav-edit').textContent = editorMode === 'classic' ? 'Editor' : 'Notebook';
   q('#nav-edit').classList.toggle('on', editing);
   q('#nav-app').classList.toggle('on', !editing);
+  // header Run only makes sense in the classic editor; notebook cells each have ▸ Run
+  q('#run-btn').hidden = !(editing && editorMode === 'classic');
 }
 async function syncEditors() {
   if (editing && editorMode === 'classic') await ensureBlob();
