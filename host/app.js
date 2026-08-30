@@ -61,15 +61,9 @@ const counters = {};
 
 // ---------------------------------------------------------------- run + render
 function currentSource() { return editing && editorMode === 'notebook' ? serializeNbMd(doc) : (blobEditor ? blobEditor.getValue() : source); }
-let demoMeta = null;   // {title, description} from nr_demo() in the last run
-function captureDemoMeta(byCell) {
-  demoMeta = null;
-  for (const els of byCell.values()) for (const e of els) if (e.type === 'demo') demoMeta = { title: e.title, description: e.description };
-  document.title = demoMeta?.title ? `${demoMeta.title} · numerical.run` : 'numerical.run';
-}
 function runAll() {
   status('running…'); const t0 = performance.now();
-  kernel.runAll(doc.cells).then((byCell) => { lastByCell = byCell; captureDemoMeta(byCell); const e = q('#dev-time'); if (e) e.textContent = `${Math.round(performance.now() - t0)} ms`; status('ran'); render(); });
+  kernel.runAll(doc.cells).then((byCell) => { lastByCell = byCell; const e = q('#dev-time'); if (e) e.textContent = `${Math.round(performance.now() - t0)} ms`; status('ran'); render(); });
 }
 function loadText(text) { source = text; doc = parseNbMd(text); syncEditors(); runAll(); }
 function render() { (editing && editorMode === 'notebook') ? renderCellsOutputs() : renderApp(); }
@@ -373,4 +367,4 @@ async function boot() {
   runAll();
 }
 await boot();
-window.__numerical = { get source() { return currentSource(); }, setEditing, get demo() { return demoMeta; } };
+window.__numerical = { get source() { return currentSource(); }, setEditing };

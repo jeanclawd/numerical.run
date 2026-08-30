@@ -167,15 +167,6 @@ export function renderElements(mount, elements, setState) {
         break;
       }
 
-      case 'demo': {
-        // nr_demo(title, description) — a gallery/notebook header (also sets the tab title)
-        const box = el('div', 'nr-demo-head');
-        box.appendChild(el('div', 'nr-demo-title', e.title || ''));
-        if (e.description) box.appendChild(el('div', 'nr-demo-desc', e.description));
-        put(box);
-        break;
-      }
-
       case 'heatmap': {
         const box = el('div', 'nr-figure nr-heatmap');
         const rows = e.data ?? [];
