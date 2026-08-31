@@ -1,0 +1,46 @@
+{
+  "name": "numerical-run",
+  "displayName": "numerical.run",
+  "description": "Edit and run .nb.md notebooks on the RunMat kernel, inside VS Code.",
+  "version": "0.1.0",
+  "publisher": "jeanclawd",
+  "license": "MIT",
+  "engines": { "vscode": "^1.90.0" },
+  "categories": ["Notebooks", "Data Science"],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onNotebook:numerical-nb"
+  ],
+  "contributes": {
+    "notebooks": [
+      {
+        "type": "numerical-nb",
+        "displayName": "numerical.run notebook",
+        "selector": [
+          { "filenamePattern": "*.nb.md" }
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "command": "numerical.restartKernel",
+        "title": "numerical.run: Restart RunMat kernel"
+      },
+      {
+        "command": "numerical.openAsNotebook",
+        "title": "numerical.run: Open file as notebook (import)"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -w -p ./",
+    "bundle-assets": "node ./scripts/bundle-assets.mjs",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.4.0"
+  }
+}
