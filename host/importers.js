@@ -90,6 +90,7 @@ function liveScriptToNbMd(text) {
 export function toNbMd(text, name = '') {
   const e = ext(name);
   const head = text.slice(0, 4000);
+  if (/\.nb\.md(?:[?#]|$)/i.test(name)) return text;                    // our own format (even prose-only) — never re-parse
   if (/\{jupyter\.code-cell\}/.test(head)) return text;                 // already .nb.md
   if (e === '.ipynb' || (/^\s*\{/.test(text) && /"cells"\s*:/.test(head))) return ipynbToNbMd(text);
   if (e === '.m') return liveScriptToNbMd(text);

@@ -41,3 +41,9 @@ Inputs, session state, and a button — the basics.
 [![The classic editor](thumbs/classic-editor.png)](?doc=examples/classic-editor.nb.md)
 
 The two editing modes — the cell-by-cell notebook and the whole-document classic editor.
+
++++
+
+### [Import your notebooks →](?doc=examples/import.nb.md)
+
+Open Jupyter `.ipynb`, Quarto/R Markdown, or MATLAB `.m` live scripts — converted to `.nb.md` in the browser.
