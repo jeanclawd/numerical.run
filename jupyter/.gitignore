@@ -1,0 +1,4 @@
+lite/_output/
+lite/static/runmat/
+lite/.jupyterlite.doit.db
+lite/.cache/
