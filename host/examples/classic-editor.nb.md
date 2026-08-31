@@ -11,6 +11,8 @@ single **Run** in the header that reruns the entire document top-to-bottom.
 The header buttons only switch between editing and the App view — the classic
 editor has no button, it lives entirely behind that URL flag.
 
+**[Open this page in the classic editor →](?doc=examples/classic-editor.nb.md&editor=classic&edit)**
+
 +++
 
 ## What it looks like
@@ -56,7 +58,7 @@ any JEP-103 tool can read.
 
 +++
 
-A live version of that cell — flip to the classic editor with `?editor=classic`
+A live version of that cell — **[open it in the classic editor →](?doc=examples/classic-editor.nb.md&editor=classic&edit)**
 to edit the whole source at once, or just drag the slider here in **App** mode:
 
 ```matlab {jupyter.code-cell}
