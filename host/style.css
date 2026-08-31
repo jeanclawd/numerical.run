@@ -143,8 +143,14 @@ main { flex: 1; display: flex; justify-content: center; padding: 2rem 1rem 3rem;
   border-radius: 5px;
   padding: 0.05rem 0.35rem;
 }
-.nr-text code { font: 0.9em ui-monospace, Menlo, monospace; background: var(--panel); border-radius: 4px; padding: 0.05rem 0.3rem; }
+.nr-text code, .md-view code { font: 0.9em ui-monospace, Menlo, monospace; background: var(--panel); border-radius: 4px; padding: 0.05rem 0.3rem; }
 .nr-text a { color: var(--accent); }
+/* prose tables + fenced code blocks (mdToHtml) — used in both App and notebook views */
+.nr-text table, .md-view table { border-collapse: collapse; width: 100%; margin: 0.6rem 0; font-size: 0.88rem; display: block; overflow-x: auto; }
+.nr-text th, .nr-text td, .md-view th, .md-view td { border: 1px solid var(--edge); padding: 0.3rem 0.6rem; text-align: left; vertical-align: top; }
+.nr-text thead th, .md-view thead th { background: var(--panel); font-weight: 600; }
+.nr-text pre, .md-view pre { background: var(--panel); border: 1px solid var(--edge); border-radius: 8px; padding: 0.6rem 0.8rem; margin: 0.6rem 0; overflow-x: auto; }
+.nr-text pre code, .md-view pre code { background: none; padding: 0; font: 0.85em ui-monospace, Menlo, monospace; color: var(--ink); }
 .nr-list { margin: 0.45rem 0; padding-left: 1.3rem; line-height: 1.55; }
 .nr-list li { margin: 0.15rem 0; }
 .nr-image-stub { color: var(--muted); }
