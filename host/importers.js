@@ -64,26 +64,70 @@ function mdNotebookToNbMd(text) {
 }
 
 // ---- MATLAB plain-text live script (.m) -----------------------------------
-// %%-sectioned files become cells: a %% title → heading, contiguous %-comment
-// runs → prose, code runs → code cells. A plain script (no %% sections) is one
-// code cell.
+// Section-per-cell: each %% starts a cell. The comment block immediately after a
+// section break carries text markup (translated to Markdown); the code that
+// follows is one code cell, verbatim (inline code comments preserved). A plain
+// script with no %% sections is a single code cell.
+
+// text markup inside a comment line -> Markdown (bold/italic/monospace, links,
+// images, symbols). Runs on prose lines only, never on code.
+function mlInline(s) {
+  return String(s)
+    .replace(/<<([^>]+)>>/g, (_, f) => `![](${f.trim()})`)                                   // <<image>>
+    .replace(/<((?:https?|ftp|file|mailto):[^>\s]+)(?:\s+([^>]+))?>/gi,                        // <url text>
+      (_, url, label) => `[${(label || url).trim()}](${url})`)
+    .replace(/<matlab:[^>\s]+(?:\s+([^>]+))?>/gi, (_, label) => label ? label.trim() : '')     // <matlab:…> can't run → label text
+    .replace(/(^|[\s([{])\|(\S(?:[^|]*\S)?)\|(?=[\s)\]}.,;:!?]|$)/g, (_, p, t) => `${p}\`${t}\``)   // |mono|
+    .replace(/(^|[\s([{])\*(\S(?:[^*]*\S)?)\*(?=[\s)\]}.,;:!?]|$)/g, (_, p, t) => `${p}**${t}**`)   // *bold*
+    .replace(/(^|[\s([{])_(\S(?:[^_]*\S)?)_(?=[\s)\]}.,;:!?]|$)/g, (_, p, t) => `${p}*${t}*`)       // _italic_
+    .replace(/\(TM\)/g, '™').replace(/\(R\)/g, '®').replace(/\(C\)/g, '©');
+}
+
+// a run of comment lines (each starting with %) after a section break -> Markdown.
+function mlCommentBlockToMd(rawLines) {
+  const out = [];
+  let pre = null;                                             // preformatted / sample-code buffer
+  const flushPre = () => { if (pre) { out.push('```', ...pre, '```'); pre = null; } };
+  for (const raw of rawLines) {
+    const body = raw.replace(/^%/, '');                       // drop the single leading %
+    const lead = (body.match(/^ +/) || [''])[0].length;
+    const trimmed = body.trimStart();
+    if (trimmed === '') { flushPre(); out.push(''); continue; }               // blank comment → paragraph break
+    if (/^<\/?(html|latex)>$/i.test(trimmed)) { continue; }                   // drop raw-markup wrappers
+    if (lead >= 2) { (pre ??= []).push(body.slice(2)); continue; }            // 2+ spaces → preformatted
+    flushPre();
+    let m;
+    if ((m = trimmed.match(/^\*\s+(.*)$/))) { out.push('- ' + mlInline(m[1])); continue; }        // bullet
+    if ((m = trimmed.match(/^#\s+(.*)$/)))  { out.push('1. ' + mlInline(m[1])); continue; }       // numbered
+    out.push(mlInline(trimmed));
+  }
+  flushPre();
+  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 function liveScriptToNbMd(text) {
   const lines = String(text).replace(/\r\n?/g, '\n').split('\n');
   if (!lines.some((l) => /^%%/.test(l))) return ser([code(text.replace(/\s+$/, ''))]);
   const cells = [];
-  let run = null, kind = null;                 // current run of lines + its kind
-  const flush = () => {
-    if (run && run.join('').trim()) cells.push(kind === 'md' ? md(run.join('\n')) : code(run.join('\n')));
-    run = null; kind = null;
-  };
-  const add = (k, line) => { if (kind !== k) { flush(); kind = k; run = []; } run.push(line); };
-  for (const line of lines) {
-    const sec = line.match(/^%%\s?(.*)$/);
-    if (sec) { flush(); if (sec[1].trim()) { kind = 'md'; run = ['## ' + sec[1].trim()]; flush(); } continue; }
-    if (/^\s*%/.test(line)) add('md', line.replace(/^\s*%\s?/, ''));
-    else add('code', line);
+  let i = 0;
+  while (i < lines.length) {
+    let title = null, subhead = false;
+    const t = lines[i].match(/^%%(%)?[ \t]?(.*)$/);           // section break (%% or %%% no-break heading)
+    if (t) { subhead = !!t[1]; title = t[2].trim(); i++; }
+    const comments = [];                                      // leading comment block (markup text)
+    while (i < lines.length && /^[ \t]*%(?!%)/.test(lines[i])) { comments.push(lines[i].replace(/^[ \t]*/, '')); i++; }
+    const codeLines = [];                                     // code until the next section break
+    while (i < lines.length && !/^%%/.test(lines[i])) { codeLines.push(lines[i]); i++; }
+
+    const parts = [];
+    if (title) parts.push((subhead ? '### ' : cells.length === 0 ? '# ' : '## ') + mlInline(title));
+    const block = mlCommentBlockToMd(comments);
+    if (block) parts.push(block);
+    const mdText = parts.join('\n\n').trim();
+    if (mdText) cells.push(md(mdText));
+    const codeText = codeLines.join('\n').replace(/\s+$/, '');
+    if (codeText.trim()) cells.push(code(codeText));
   }
-  flush();
   return ser(cells);
 }
 

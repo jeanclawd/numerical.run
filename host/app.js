@@ -14,7 +14,7 @@
  */
 
 const V = document.body.dataset.v || String(Date.now());
-const APP_VERSION = 'v0.6.1';   // numerical.run release — bump on each release
+const APP_VERSION = 'v0.6.2';   // numerical.run release — bump on each release
 const CFG = window.NUMCFG || {};
 const RUNTIME = CFG.runtime || './runtime';
 const FIGR = CFG.figrender || './runtime/figrender.mjs';
