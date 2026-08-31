@@ -47,9 +47,9 @@ A code cell is a fenced block tagged with `matlab {jupyter.code-cell}`; prose
 lives between `+++` separators. A cell looks like this:
 
 ```
-n = nr_slider('samples', 20, 200, 80, 10);
-x = linspace(0, 2*pi, n);
-figure; plot(x, gather(sin(x)), 'LineWidth', 2);
+f = nr_slider('frequency', 1, 8, 2, 0.5);
+x = linspace(0, 2*pi, 400);
+figure; plot(x, gather(sin(f * x)), 'LineWidth', 2);
 nr_figure();
 ```
 
@@ -62,10 +62,10 @@ A live version of that cell — **[open it in the classic editor →](?doc=examp
 to edit the whole source at once, or just drag the slider here in **App** mode:
 
 ```matlab {jupyter.code-cell}
-n = nr_slider('samples', 20, 200, 80, 10);
-x = linspace(0, 2*pi, n);
-figure; plot(x, gather(sin(x)), 'LineWidth', 2);
-title(sprintf('sin over %d samples', n));
+f = nr_slider('frequency', 1, 8, 2, 0.5);
+x = linspace(0, 2*pi, 400);
+figure; plot(x, gather(sin(f * x)), 'LineWidth', 2);
+title(sprintf('sin, f = %.1f', f));
 nr_figure();
-nr_metric('samples', n, '%d');
+nr_metric('frequency', f, '%.1f');
 ```
