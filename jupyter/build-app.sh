@@ -16,7 +16,10 @@ V="$(date +%Y%m%d%H%M%S)"
 build_into() {
   local dest="$1/app"
   mkdir -p "$dest/examples"
-  sed -e "s|__V__|$V|g" \
+  # appOnly = "present" mode: no notebook/editor chrome (editing lives in /lab).
+  # The appOnly/labBase injection must run before __MONACO__ is substituted.
+  sed -e "s|monaco: '__MONACO__' }|monaco: '__MONACO__', appOnly: true, labBase: '../lab' }|" \
+      -e "s|__V__|$V|g" \
       -e "s|__RUNTIME__|$RUNTIME_REL|g" \
       -e "s|__FIGRENDER__|$RUNTIME_REL/figrender.mjs|g" \
       -e "s|__MONACO__|$RUNTIME_REL/monaco|g" \

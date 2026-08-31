@@ -19,6 +19,8 @@ const CFG = window.NUMCFG || {};
 const RUNTIME = CFG.runtime || './runtime';
 const FIGR = CFG.figrender || './runtime/figrender.mjs';
 const MONACO = CFG.monaco || './monaco';
+const APP_ONLY = !!CFG.appOnly;        // "present" mode: no editor chrome (editing lives elsewhere, e.g. JupyterLab)
+const LAB_BASE = CFG.labBase || '../lab';
 const q = (s) => document.querySelector(s);
 const status = (t) => { const s = q('#status2'); if (s) s.textContent = t; };
 const b64encode = (s) => btoa(String.fromCharCode(...new TextEncoder().encode(s)));
@@ -226,6 +228,7 @@ function setStage() {
   const stage = q('#stage');
   stage.className = !editing ? 'view' : editorMode;      // 'view' | 'classic' | 'notebook'
   document.body.classList.toggle('is-edit', editing);
+  document.body.classList.toggle('app-only', APP_ONLY);
   // reflect the Notebook|App toggle (gradient on the selected mode)
   q('#nav-edit').textContent = editorMode === 'classic' ? 'Editor' : 'Notebook';
   q('#nav-edit').classList.toggle('on', editing);
@@ -340,6 +343,15 @@ function wire() {
   });
 }
 
+// In app-only mode, offer a jump to JupyterLab for editing this same notebook.
+function setupLabLink(docUrl) {
+  const a = q('#open-lab');
+  if (!a) return;
+  const base = (docUrl || '').split(/[?#]/)[0].split('/').pop() || '';
+  a.href = base ? `${LAB_BASE}/index.html?path=${encodeURIComponent(base)}` : `${LAB_BASE}/`;
+  a.hidden = false;
+}
+
 // ---------------------------------------------------------------- boot
 async function boot() {
   wire();
@@ -364,7 +376,8 @@ async function boot() {
   doc = parseNbMd(source);
   // The gallery + shared docs open as the rendered App (links clickable); a blank
   // notebook opens in the editor. ?edit always forces the editor.
-  editing = wantEdit || (!shared && !isGallery);
+  editing = APP_ONLY ? false : (wantEdit || (!shared && !isGallery));
+  if (APP_ONLY) setupLabLink(docUrl);
   setStage(); updateURL();
   await syncEditors();
   runAll();

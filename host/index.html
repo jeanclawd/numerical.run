@@ -11,6 +11,9 @@
   <style>
     html, body { height: 100%; margin: 0; }
     [hidden] { display: none !important; }
+    /* app-only ("present") mode: no notebook/editor chrome — editing lives elsewhere (e.g. JupyterLab) */
+    body.app-only .seg, body.app-only #run-btn { display: none !important; }
+    #open-lab { text-decoration: none; }
     body { display: flex; flex-direction: column; background: var(--bg); color: var(--ink); }
     header { display: flex; align-items: center; gap: 0.5rem 0.85rem; padding: 0.55rem 1rem; border-bottom: 1px solid var(--edge); background: var(--panel); flex: none; flex-wrap: wrap; position: relative; }
     header::after { content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:var(--grad); opacity:.9; }
@@ -135,6 +138,7 @@
       <button data-nav="app" id="nav-app">App</button>
     </div>
     <button id="run-btn" hidden>▶ Run<span class="kbd">⌘⏎</span></button>
+    <a id="open-lab" class="ghost" hidden target="_top" title="Open this notebook in JupyterLab to edit">Edit in JupyterLab ↗</a>
     <button id="share-btn" class="ghost" title="Copy a link carrying this document">share</button>
   </header>
 
