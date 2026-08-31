@@ -14,6 +14,7 @@
  */
 
 const V = document.body.dataset.v || String(Date.now());
+const APP_VERSION = 'v0.6.1';   // numerical.run release — bump on each release
 const CFG = window.NUMCFG || {};
 const RUNTIME = CFG.runtime || './runtime';
 const FIGR = CFG.figrender || './runtime/figrender.mjs';
@@ -45,6 +46,7 @@ const { toNbMd } = await import(`./importers.js?v=${V}`);
 const kernel = await createKernel({
   statusEl: q('#status2'), runtimeUrl: RUNTIME, figrenderUrl: `${FIGR}?v=${V}`,
   renderUrl: `./render.js?v=${V}`, library: await (await fetch(`./lib.m?v=${V}`)).text(),
+  appVersion: APP_VERSION,
 });
 
 // ---------------------------------------------------------------- state
@@ -353,7 +355,7 @@ async function boot() {
   try {
     if (code) source = b64decode(code);
     else if (gist) source = await fetchGist(gist);
-    else if (docUrl && /^(https?:\/\/|[\w./-]+\.(nb\.md|ipynb|qmd|rmd|md|m))$/i.test(docUrl)) source = toNbMd(await fetchDoc(docUrl), docUrl);
+    else if (docUrl && (/^https?:\/\//i.test(docUrl) || /\.(nb\.md|ipynb|qmd|rmd|md|m)(?:[?#]|$)/i.test(docUrl))) source = toNbMd(await fetchDoc(docUrl), docUrl);
     else if (blank) source = DEFAULT_DOC;
     else { source = await fetchDoc(`./examples/gallery.nb.md?v=${V}`); isGallery = true; }   // bare URL → the gallery notebook
   } catch (e) { source = DEFAULT_DOC; status(`bad source: ${e.message}`); }
